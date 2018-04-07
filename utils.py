@@ -36,7 +36,11 @@ def encode_english(seq):
 
     enc = "".join(enc)
 
+<<<<<<< HEAD
     print(enc.encode("shift-jis", "ignore").hex())
+=======
+    # print(enc.encode("shift-jis", "ignore").hex())
+>>>>>>> efb34d9b7550b8ce7b6f6f4072f026d929b5161f
 
     return enc
 
