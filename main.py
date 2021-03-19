@@ -1,34 +1,23 @@
-import re
+import os
+import sys
 
-from textwrap import wrap
-from google_trans_new import google_translator
+import tqdm
+import mmap
 
-# From ADDRESS: 0x02A7Fa46
+import utils
 
-translator = google_translator()
+import subprocess
 
-def read_hex(hexf):
-    for i in range(4):
-        hexf = hexf.replace(" ", "")
 
-        out = []
-        for k in [hexf[c:c+4] for c in range(i, len(hexf), 4)]:
-            if ((k[0] == "8") or (k[0] == "9")):
-                try:
-                    kana = bytes.fromhex(k).decode("shift_jisx0213")
-                    out.append(kana)
+def main():
+    f = os.open("/Users/matthewjordan/Library/Application Support/avocado/iso/Tokimeki Memorial - Forever with You (Japan)/Tokimeki Memorial - Forever with You (Japan) (Track 1).bin", os.O_RDWR)
+    mm = mmap.mmap(f, 0, prot=mmap.PROT_READ)
 
-                except:
-                    continue
+    mm.seek(0x0008F5BC)
+    line = mm.readline()
 
-        out = ''.join(out)
-        out = translator.translate(out, lang_tgt='en')
-        print(f"{out}")
+    addr = input()
 
 
 if __name__=="__main__":
-    text = input()
-    print(read_hex(text))
-
-    # with open("hex.txt", "r") as hexf:
-        # print (read_hex(hexf.read()))
+    main()
