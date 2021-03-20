@@ -11,13 +11,18 @@ import utils
 
 import subprocess
 
-while(True):
-    capture = py.io.StdCaptureFD(out=False, in_=False)
-    out,err = capture.reset()
 
-    print(out)
-    print(err)
-    time.sleep(1)
+with open("/Users/matthewjordan/Library/Application Support/avocado/iso/Tokimeki Memorial - Forever with You (Japan)/Tokimeki Memorial - Forever with You (Japan) (Track 1).bin", "rb") as infile:
+    binary = infile.read().decode("shift-jis", "ignore")
+    print(binary)
+
+# while(True):
+    # capture = py.io.StdCaptureFD(out=False, in_=False)
+    # out,err = capture.reset()
+
+    # print(out)
+    # print(err)
+    # time.sleep(1)
 
 
 # def main():

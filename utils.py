@@ -14,13 +14,13 @@ def read_hex(hexf):
 
         out = []
         for k in [hexf[c:c+4] for c in range(i, len(hexf), 4)]:
-            if ((k[0] == "8") or (k[0] == "9")):
-                try:
-                    kana = bytes.fromhex(k).decode("shift_jisx0213")
-                    out.append(kana)
+            # if ((k[0] == "8") or (k[0] == "9")):
+            try:
+                kana = bytes.fromhex(k).decode("shift_jisx0213", "ignore")
+                out.append(kana)
 
-                except:
-                    continue
+            except:
+                continue
 
         out = ''.join(out)
         out_trans = translator.translate(out, lang_tgt='en')
