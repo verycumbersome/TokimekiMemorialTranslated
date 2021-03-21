@@ -12,10 +12,6 @@ import utils
 import subprocess
 
 
-with open("/Users/matthewjordan/Library/Application Support/avocado/iso/Tokimeki Memorial - Forever with You (Japan)/Tokimeki Memorial - Forever with You (Japan) (Track 1).bin", "rb") as infile:
-    binary = infile.read().decode("shift-jis", "ignore")
-    print(binary)
-
 # while(True):
     # capture = py.io.StdCaptureFD(out=False, in_=False)
     # out,err = capture.reset()
@@ -25,15 +21,14 @@ with open("/Users/matthewjordan/Library/Application Support/avocado/iso/Tokimeki
     # time.sleep(1)
 
 
-# def main():
-    # f = os.open("/Users/matthewjordan/Library/Application Support/avocado/iso/Tokimeki Memorial - Forever with You (Japan)/Tokimeki Memorial - Forever with You (Japan) (Track 1).bin", os.O_RDWR)
-    # mm = mmap.mmap(f, 0, prot=mmap.PROT_READ)
+def main():
+    f_ptr = os.open("/Users/matthewjordan/Library/Application Support/avocado/iso/Tokimeki Memorial - Forever with You (Japan)/Tokimeki Memorial - Forever with You (Japan) (Track 1).bin", os.O_RDWR)
 
-    # mm.seek(0x0008F5BC)
-    # line = mm.readline()
+    addr = int(input(), 16)
 
-    # addr = input()
+    print(utils.read_hex(f_ptr, addr))
 
 
-# if __name__=="__main__":
-    # main()
+
+if __name__=="__main__":
+    main()
