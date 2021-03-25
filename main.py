@@ -26,7 +26,8 @@ def main():
 
     addr = int(input(), 16)
 
-    print(utils.read_hex(f_ptr, addr))
+    print(utils.read_hex_file(f_ptr, addr))
+    utils.read_hex_file(f_ptr, addr)
 
 
 
