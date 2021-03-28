@@ -9,11 +9,12 @@ translator = google_translator()
 
 
 def read_hex(hexf):
-    for i in range(4):
-        hexf = hexf.replace(" ", "")
-        hexf = hexf.replace("20", "")
-        hexf = hexf.replace("00", "")
+    hexf = hexf.replace(" ", "")
+    hexf = hexf.replace("8200", "")
+    hexf = hexf.replace("20", "")
+    hexf = hexf.replace("00", "")
 
+    for i in range(4):
         out = []
         for k in [hexf[c:c+4] for c in range(i, len(hexf), 4)]:
             try:
@@ -30,6 +31,7 @@ def read_hex(hexf):
         print("Original:", out)
         print()
 
+
 def read_hex_file(filename, addr):
     f_ptr = os.open(filename, os.O_RDWR)
 
@@ -42,14 +44,6 @@ def read_hex_file(filename, addr):
 
     return out
 
-# def split_hex():
-    # with open("/Users/matthewjordan/Library/Application Support/avocado/iso/Tokimeki Memorial - Forever with You (Japan)/Tokimeki Memorial - Forever with You (Japan) (Track 1).bin", "r") as f_in:
-        # for line in f_in:
-            # if sep in line:
-                # print(line)
-                # offsets.append(f_in.tell())
-
-        # file_ptr.read().split("\x00\x00\x08\xAE")
 
 if __name__=="__main__":
     text = input()
