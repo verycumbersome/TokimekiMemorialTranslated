@@ -1,4 +1,3 @@
-import os
 import sys
 import time
 
@@ -22,13 +21,11 @@ import subprocess
 
 
 def main():
-    f_ptr = os.open("/Users/matthewjordan/Library/Application Support/avocado/iso/Tokimeki Memorial - Forever with You (Japan)/Tokimeki Memorial - Forever with You (Japan) (Track 1).bin", os.O_RDWR)
+    filename = "/Users/matthewjordan/Library/Application Support/avocado/ram.bin"
 
     addr = int(input(), 16)
 
-    print(utils.read_hex_file(f_ptr, addr))
-    utils.read_hex_file(f_ptr, addr)
-
+    print(utils.read_hex_file(filename, addr))
 
 
 if __name__=="__main__":

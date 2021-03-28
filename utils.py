@@ -1,3 +1,4 @@
+import os
 import re
 import mmap
 
@@ -10,6 +11,8 @@ translator = google_translator()
 def read_hex(hexf):
     for i in range(4):
         hexf = hexf.replace(" ", "")
+        hexf = hexf.replace("20", "")
+        hexf = hexf.replace("00", "")
 
         out = []
         for k in [hexf[c:c+4] for c in range(i, len(hexf), 4)]:
@@ -25,8 +28,11 @@ def read_hex(hexf):
 
         print("Translated:", out_trans)
         print("Original:", out)
+        print()
 
-def read_hex_file(f_ptr, addr):
+def read_hex_file(filename, addr):
+    f_ptr = os.open(filename, os.O_RDWR)
+
     mm = mmap.mmap(f_ptr, 0, prot=mmap.PROT_READ)
     mm.seek(addr)
     line = mm.readline()
