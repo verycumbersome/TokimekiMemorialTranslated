@@ -1,34 +1,26 @@
-import sys
-import time
-
-
-import py
-import tqdm
-import mmap
+import subprocess
 
 import utils
 
-import subprocess
-
-
-# while(True):
-    # capture = py.io.StdCaptureFD(out=False, in_=False)
-    # out,err = capture.reset()
-
-    # print(out)
-    # print(err)
-    # time.sleep(1)
-
-
 def main():
-    filename = "/Users/matthewjordan/Library/Application Support/avocado/ram.bin"
+    args = ["./avocado"]
+    p = subprocess.Popen(args,
+                         stdout=subprocess.PIPE,
+                         cwd="./Avocado")
+    # p.stdout.flush()
 
-    # addr = int(input(), 16)
+    # Main emulator loop 
+    tmp = None
+    while True:
+        lines = str(p.stdout.readline().strip()).split(" 0 ")
 
-input()
-    print(addr)
+        for l in lines:
+            if (len(l) > 20):
+                if (tmp != l) and (l != b""):
+                    utils.read_hex(str(l), translate=True)
+                    tmp = l
 
-    # print(utils.read_hex_file(filename, addr))
+        print("\n\n")
 
 
 if __name__=="__main__":
