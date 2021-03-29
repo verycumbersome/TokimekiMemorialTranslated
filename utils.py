@@ -8,7 +8,6 @@ from google_trans_new import google_translator
 translator = google_translator()
 
 def clean_seq(seq):
-    print("SEQ", seq)
     seq = str(seq).lower()
     seq = seq.replace("71", "")
     seq = seq.replace("20", "")
@@ -19,28 +18,22 @@ def clean_seq(seq):
     return seq
 
 
-def read_hex(hexf, translate = False):
-    # for i in range(4):
-    i = 0
+def read_hex(hexf, offset = 0, translate = False):
+    # for offset in range(4):
     out = []
-    print(hexf)
-    print([hexf[c:c+4] for c in range(i, len(hexf), 4)])
-    for k in [hexf[c:c+4] for c in range(i, len(hexf), 4)]:
+    for k in [hexf[c:c+4] for c in range(offset, len(hexf), 4)]:
         try:
-            kana = bytes.fromhex(k).decode("shift_jisx0213", "ignore")
+            kana = bytes.fromhex(k).decode("shift-jis", "ignore")
             out.append(kana)
 
         except:
             continue
 
     out = ''.join(out)
-
     if translate:
-        out_trans = translator.translate(out, lang_tgt='en')
-        print("Translated:", out_trans)
+        return translator.translate(out, lang_tgt='en')
 
-    print("Original:", out)
-    print()
+    return out
 
 
 def read_file_addr(filename, addr):
@@ -59,4 +52,4 @@ def read_file_addr(filename, addr):
 if __name__=="__main__":
     text = input()
     for t in text.split(" 0 "):
-        read_hex(clean_seq(t), translate = True)
+        print(read_hex(clean_seq(t), translate = False))

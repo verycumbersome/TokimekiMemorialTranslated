@@ -30,17 +30,21 @@ def get_table(filename):
         # print("nul", null_idx)
 
         if ((end - curr) < 300):
-            seq = mm[curr + 2:end + 2]  # Sentence
-            h_key = hashlib.sha224(seq.hex().encode("utf8")).hexdigest()
+            seq = mm[curr + 2:end + 2].replace(b"\x00", b"")  # Sentence
+            seq = seq.replace(b"\x20", b"")
+            seq = str(seq.decode("shift-jis", "ignore"))
+            h_key = hashlib.sha224(str(seq).encode("utf8")).hexdigest()
 
-            table[h_key] = seq.decode("shift-jis", "ignore")
+            table[h_key] = str(seq)
 
-            print(seq.hex())
-            print("seq", seq.decode("shift-jisx0213", "ignore"))
-            print()
-            if "ってるも何も、" in seq.decode("shift-jis", "ignore"):
-                print("FUCLKKKK")
-                exit()
+
+            # print("seq", str(seq))
+            # print(mm[curr + 2:end + 2].replace(b"\x00", b""))
+            # print()
+            # if "知ってるも何も、超有名人じゃないか。" in str(seq):
+                # print("FUCLKKKK")
+                # exit()
+
         end = curr
 
     return table
