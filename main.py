@@ -23,9 +23,12 @@ import subprocess
 def main():
     filename = "/Users/matthewjordan/Library/Application Support/avocado/ram.bin"
 
-    addr = int(input(), 16)
+    # addr = int(input(), 16)
 
-    print(utils.read_hex_file(filename, addr))
+input()
+    print(addr)
+
+    # print(utils.read_hex_file(filename, addr))
 
 
 if __name__=="__main__":
