@@ -38,24 +38,24 @@ def create_table(filename):
                 end = curr
                 continue
 
+            # Split sequence for encoding individual sentences
             enc_seq = []
             for l in re.split(b'(\x81\x42|\x81\x48)', seq):
                 enc_seq += [s.decode("shift-jis", "ignore") for s in l.split(b"\x20")]
+            seq = "".join(enc_seq)
 
-            enc_seq = "".join(enc_seq)
-            h_key = hashlib.sha224(str(enc_seq).encode("utf8")).hexdigest()
+            # Hash sequence for key
+            h_key = hashlib.sha224(str(seq).encode("utf8")).hexdigest()
+            seq = str(seq.encode("shift-jis", "ignore").hex())
 
-            seq = seq.replace(b"\x20", b"")
-            seq = seq.replace(b"\x00", b"")
-            table[h_key] = utils.read_hex(str(seq.hex()), translate=False)
-
-        # if counter > 200:
-            # return table
+            # Set table key and val
+            table[h_key] = utils.read_hex(seq, translate=False)
 
         end = curr
         counter += 1
         pbar.update(counter)
 
+    pbar.update(len(mm))
     pbar.close()
     return table
 
