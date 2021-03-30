@@ -41,7 +41,7 @@ def main():
                 seq = utils.read_hex(seq, translate=False)
                 h_key = hashlib.sha224(str(seq).encode("utf8")).hexdigest()
 
-                print("DIRECT: ", seq)
+                # print("DIRECT: ", seq)
                 if h_key in trans_table:
                     print("TRANS TABLE: ", trans_table[h_key])
 

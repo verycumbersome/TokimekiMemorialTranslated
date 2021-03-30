@@ -2,12 +2,30 @@
 import os
 import re
 import json
+import time
 
 import tqdm
 import mmap
 import hashlib
 
 import utils
+
+# TODO look over this absolute dogshit code
+def trim_seq(seq):
+    """Trims a sequence to the earliest valid shift-jis (8-9 first char range) character"""
+    idx = 0
+    if not ((seq.hex()[:1] == "8") or (seq.hex()[:1] == "9")):
+        if "8" in seq.hex():
+            idx = seq.hex().index("8")
+
+        elif "9" in seq.hex():
+            if seq.hex().index("9") > idx:
+                seq = seq[idx:]
+            else:
+                seq = seq[seq.hex().index("9"):]
+
+    return seq
+
 
 def create_table(filename):
     """Returns a translation table from a bin file"""
@@ -16,14 +34,11 @@ def create_table(filename):
     f_ptr = os.open(filename, os.O_RDWR)
     mm = mmap.mmap(f_ptr, 0, prot=mmap.PROT_READ)
 
-    # Initialize idx pointer values for all punctuation
+    table = {}
+    end = curr = 110000000
     pbar = tqdm.tqdm(total=len(mm))
-    per_idx = mm.rfind(b"\x81\x42", 0, len(mm))  # Period
-    qst_idx = mm.rfind(b"\x81\x48", 0, len(mm))  # Question mark
-    end = curr = min(per_idx, qst_idx)
 
     counter = 0
-    table = {}
     while (curr > 1):
         per_idx = mm.rfind(b"\x81\x42", 0, end)  # Period
         qst_idx = mm.rfind(b"\x81\x48", 0, end)  # Question mark
@@ -31,13 +46,9 @@ def create_table(filename):
 
         curr = max(min(per_idx, null_idx), min(qst_idx, null_idx))
 
-        if ((end - curr) < 300):
+        if (20 < (end - curr) < 300):
             seq = mm[curr + 2:end + 2].replace(b"\x00", b"[SEP]")  # Sentence
-
-            # Continue search if shift-jis not valid ascii
-            if not ((seq.hex()[:1] == "8") or (seq.hex()[:1] == "9")):
-                end = curr
-                continue
+            seq = trim_seq(seq)
 
             # Split sequence for encoding individual sentences
             enc_seq = []
@@ -51,22 +62,27 @@ def create_table(filename):
                 # Hash sequence for key
                 h_key = hashlib.sha224(str(seq).encode("utf8")).hexdigest()
 
-                # if "あっ、私、野球部でマネージャーをやっている虹野沙希なんだけど。" in seq:
-                if "部でマネージャーをや" in seq:
-                    print(seq)
-                    print(str(seq.encode("shift-jis", "ignore").hex()))
-                    print("fuck")
+                # if "でマネージャー" in seq:
+                    # print(seq)
+                    # print(str(seq.encode("shift-jis", "ignore").hex()))
                     # exit()
+
                 seq = str(seq.encode("shift-jis", "ignore").hex())
 
                 # Set table key and val
-                table[h_key] = utils.read_hex(seq, translate=False)
+                try:
+                    table[h_key] = utils.read_hex(seq, translate=False)
+                    time.sleep(0.1)
+                except:
+                    print("Translate not working")
+                    continue
 
         end = curr
         counter += 1
         pbar.update(counter)
 
     pbar.close()
+    print(len(table))
     return table
 
 if __name__=="__main__":
