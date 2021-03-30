@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import os
 import json
 
@@ -14,6 +15,16 @@ with open("translation_table.json") as table_fp:
     trans_table = json.load(table_fp)
 
 
+def handle_dup(seq):
+    dup = seq.split(b" ")
+    dup = sum([dup[c] == dup[(c+1)%len(dup)] for c in range(len(dup))])
+
+    if dup > 10:
+        seq = b" ".join(seq.split(b" ")[::2]).decode("utf8")
+
+    return seq
+
+
 def main():
     p = subprocess.Popen(["./avocado"],
                          stdout=subprocess.PIPE,
@@ -23,6 +34,8 @@ def main():
     while True:
         seq = p.stdout.readline().strip().split(b" 0 ")[0]
         if (len(seq) > 20):
+            seq = handle_dup(seq)
+
             if (tmp != seq) and (seq != b""):
                 seq = utils.clean_seq(seq)
                 seq = utils.read_hex(seq, translate=False)
