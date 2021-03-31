@@ -42,47 +42,54 @@ def create_table(filename):
     while (curr > 1):
         per_idx = mm.rfind(b"\x81\x42", 0, end)  # Period
         qst_idx = mm.rfind(b"\x81\x48", 0, end)  # Question mark
-        null_idx = mm.rfind(b"\x00\x00", 0, end)  # NULL separator
+        null_idx = mm.rfind(b"\x00", 0, end)  # NULL separator
 
         curr = max(min(per_idx, null_idx), min(qst_idx, null_idx))
 
-        if (20 < (end - curr) < 300):
-            seq = mm[curr + 2:end + 2].replace(b"\x00", b"[SEP]")  # Sentence
-            seq = trim_seq(seq)
+        if ((end - curr) < 300):
+            seq = mm[curr + 2:end + 2].replace(b"20", b"000020")  # Sentence
 
             # Split sequence for encoding individual sentences
+            seq = seq.replace(b"20", b"000020")
             enc_seq = []
-            for l in re.split(b'(\x81\x42|\x81\x48)', seq):
-                enc_seq += [s.decode("shift-jis", "ignore") for s in l.split(b"\x20")]
+            for l in re.split(b'(8142|8148|000020)', seq[:-1]):
+                enc_seq.append(l.decode("shift-jis", "ignore")[(len(l) % 4):])
 
-            for seq in "".join(enc_seq).split("[SEP]"):
+            # enc_seq = []
+            # for l in re.split(b'(\x81\x42|\x81\x48|\x20)', seq):
+                # enc_seq += l.decode("shift-jis", "ignore")
+
+            enc_seq = seq.decode("shift-jis", "ignore")
+
+            # for seq in "".join(enc_seq).split("[SEP]"):
+            for seq in enc_seq.split("[SEP]"):
                 if not seq:
                     continue
+
+                print(seq)
+                print(len(seq))
+                print()
 
                 # Hash sequence for key
                 h_key = hashlib.sha224(str(seq).encode("utf8")).hexdigest()
 
-                # if "でマネージャー" in seq:
+                # if "今日は何をしようかな？）" in seq:
                     # print(seq)
                     # print(str(seq.encode("shift-jis", "ignore").hex()))
-                    # exit()
+                    # print()
+                    # # exit()
 
                 seq = str(seq.encode("shift-jis", "ignore").hex())
 
                 # Set table key and val
-                try:
-                    table[h_key] = utils.read_hex(seq, translate=False)
-                    time.sleep(0.1)
-                except:
-                    print("Translate not working")
-                    continue
+                table[h_key] = utils.read_hex(seq, translate=False)
 
         end = curr
         counter += 1
         pbar.update(counter)
 
     pbar.close()
-    print(len(table))
+    print("Table length:", len(table))
     return table
 
 if __name__=="__main__":
