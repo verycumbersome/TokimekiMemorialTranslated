@@ -47,42 +47,23 @@ def create_table(filename):
         curr = max(min(per_idx, null_idx), min(qst_idx, null_idx))
 
         if ((end - curr) < 300):
-            seq = mm[curr + 2:end + 2].replace(b"20", b"000020")  # Sentence
+            seq = mm[curr:end + 2]  # Sentence
+            seq = utils.encode_seq(seq)
 
-            # Split sequence for encoding individual sentences
-            seq = seq.replace(b"20", b"000020")
-            enc_seq = []
-            for l in re.split(b'(8142|8148|000020)', seq[:-1]):
-                enc_seq.append(l.decode("shift-jis", "ignore")[(len(l) % 4):])
+            # Hash sequence for key
+            h_key = hashlib.sha224(seq.encode("utf8")).hexdigest()
 
-            # enc_seq = []
-            # for l in re.split(b'(\x81\x42|\x81\x48|\x20)', seq):
-                # enc_seq += l.decode("shift-jis", "ignore")
-
-            enc_seq = seq.decode("shift-jis", "ignore")
-
-            # for seq in "".join(enc_seq).split("[SEP]"):
-            for seq in enc_seq.split("[SEP]"):
-                if not seq:
-                    continue
-
+            if "はははは、ならないって。じゃあ私、もうひとっ走りしてくるから。" in seq:
                 print(seq)
-                print(len(seq))
+                print(str(seq.encode("shift-jis", "ignore").hex()))
+                print("FUCKK")
                 print()
+                # exit()
 
-                # Hash sequence for key
-                h_key = hashlib.sha224(str(seq).encode("utf8")).hexdigest()
+            seq = str(seq.encode("shift-jis", "ignore").hex())
 
-                # if "今日は何をしようかな？）" in seq:
-                    # print(seq)
-                    # print(str(seq.encode("shift-jis", "ignore").hex()))
-                    # print()
-                    # # exit()
-
-                seq = str(seq.encode("shift-jis", "ignore").hex())
-
-                # Set table key and val
-                table[h_key] = utils.read_hex(seq, translate=False)
+            # Set table key and val
+            table[h_key] = utils.read_hex(seq, translate=False)
 
         end = curr
         counter += 1

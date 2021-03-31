@@ -41,21 +41,15 @@ def main():
         seq = p.stdout.readline().strip().split(b" 0 ")[0]
         if (len(seq) > 20):
             if (tmp != seq) and (seq):
-                enc_seq = []
-                for l in re.split(b'(8142|8148|20)', seq[:-1]):
-                    enc_seq.append(l.decode("shift-jis", "ignore")[(len(l) % 4):])
-
-                seq = "".join(enc_seq)
-                print("enc", utils.clean_seq("".join(enc_seq)))
-
-                seq = utils.clean_seq(seq)
+                seq = utils.encode_seq(seq[:-1])
                 seq = utils.read_hex(seq, translate=False)
                 h_key = hashlib.sha224(str(seq).encode("utf8")).hexdigest()
 
 
                 print("DIRECT: ", seq)
                 if h_key in trans_table:
-                    print("TRANS TABLE: ", translator.translate(trans_table[h_key], lang_tgt='en'))
+                    # print("TRANS TABLE: ", translator.translate(trans_table[h_key], lang_tgt='en'))
+                    print("TRANS TABLE: ", trans_table[h_key])
 
                 print()
 
