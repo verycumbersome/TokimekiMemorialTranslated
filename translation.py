@@ -42,22 +42,19 @@ def create_table(filename):
     while (curr > 1):
         per_idx = mm.rfind(b"\x81\x42", 0, end)  # Period
         qst_idx = mm.rfind(b"\x81\x48", 0, end)  # Question mark
-        null_idx = mm.rfind(b"\x00\x00", 0, end)  # NULL separator
+        null_idx = mm.rfind(b"\x00", 0, end)  # NULL separator
 
         curr = max(min(per_idx, null_idx), min(qst_idx, null_idx))
 
         if ((end - curr) < 300):
             seq = mm[curr:end + 2]  # Sentence
-            # print(seq)
-            seq = utils.encode_seq(seq)
-            # print(seq)
-            # print()
+            seq = utils.encode_seq(seq).strip()
 
             # Hash sequence for key
             h_key = hashlib.sha224(seq.encode("utf8")).hexdigest()
             table[h_key] = seq
 
-            # if "はははは、ならないって。じゃあ私、もうひとっ走りしてくるから。" in seq:
+            # if "あー、今日も疲れたな。急いで、家に帰ろう。" in seq:
                 # print(seq)
                 # print(str(seq.encode("shift-jis", "ignore").hex()))
                 # print("FUCKK")
