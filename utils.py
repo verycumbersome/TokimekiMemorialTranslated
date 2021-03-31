@@ -8,22 +8,14 @@ from google_trans_new import google_translator
 
 translator = google_translator()
 
-def clean_seq(seq):
-    seq = str(seq).lower()
-    seq = seq.replace("71", "")
-    seq = seq.replace("20", "")
-    seq = seq.replace(" ", "")
-    seq = seq.replace("8200", "")
-    seq = seq.replace("00", "")
-
-    return seq
-
 
 def encode_seq(seq):
+    """Encodes hex string into shift-jis ascii string"""
+    # seq = seq[len(seq) % 4:]
     enc_seq = []
-    for l in re.split(b'(\x81\x42|\x81\x48|\x20|\x00)', seq[(len(seq) % 4):]):
-        if (len(l) >= 2):
-            enc_seq.append(l.decode("shift-jis", "ignore"))
+    for s in re.split(b'(\x81\x42|\x81\x48|\x20|\x00)', seq):
+        if (len(s) >= 2):
+            enc_seq.append(s[len(s) % 2:].decode("shift-jis", "ignore"))
 
     return("".join(enc_seq))
 
@@ -60,4 +52,4 @@ if __name__=="__main__":
         seq = seq.replace("8200", "")
         seq = seq.replace("00", "")
 
-        print(read_hex(clean_seq(seq), translate = False))
+        print(read_hex(seq, translate = False))
