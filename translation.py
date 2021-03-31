@@ -52,18 +52,14 @@ def create_table(filename):
 
             # Hash sequence for key
             h_key = hashlib.sha224(seq.encode("utf8")).hexdigest()
+            table[h_key] = seq
 
-            if "はははは、ならないって。じゃあ私、もうひとっ走りしてくるから。" in seq:
-                print(seq)
-                print(str(seq.encode("shift-jis", "ignore").hex()))
-                print("FUCKK")
-                print()
+            # if "はははは、ならないって。じゃあ私、もうひとっ走りしてくるから。" in seq:
+                # print(seq)
+                # print(str(seq.encode("shift-jis", "ignore").hex()))
+                # print("FUCKK")
+                # print()
                 # exit()
-
-            seq = str(seq.encode("shift-jis", "ignore").hex())
-
-            # Set table key and val
-            table[h_key] = utils.read_hex(seq, translate=False)
 
         end = curr
         counter += 1
