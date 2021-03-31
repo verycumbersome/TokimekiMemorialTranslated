@@ -19,6 +19,16 @@ def clean_seq(seq):
     return seq
 
 
+def clean_byte_seq(seq):
+    enc_seq = []
+    for l in re.split(b'(8142|8148|20)', seq[:-1]):
+        enc_seq.append(l.decode("shift-jis", "ignore")[(len(l) % 4):])
+
+    seq = "".join(enc_seq)
+
+    return seq
+
+
 def read_hex(hexf, offset = 0, translate = False):
     # for offset in range(4):
     out = []
@@ -31,21 +41,12 @@ def read_hex(hexf, offset = 0, translate = False):
             continue
 
     out = ''.join(out)
+
     if translate:
-        return translator.translate(out, lang_tgt='en')
-
-    return out
-
-
-def read_file_addr(filename, addr):
-    f_ptr = os.open(filename, os.O_RDWR)
-
-    mm = mmap.mmap(f_ptr, 0, prot=mmap.PROT_READ)
-    mm.seek(addr)
-    line = mm.readline()
-
-    out = line.decode("shift-jis", "ignore")
-    # out = translator.translate(out, lang_tgt='en')
+        try:
+            out = translator.translate(out, lang_tgt='en')
+        except:
+            print("Translation error")
 
     return out
 
