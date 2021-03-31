@@ -19,14 +19,14 @@ def clean_seq(seq):
     return seq
 
 
-def clean_byte_seq(seq):
+def encode_seq(seq):
     enc_seq = []
-    for l in re.split(b'(8142|8148|20)', seq[:-1]):
-        enc_seq.append(l.decode("shift-jis", "ignore")[(len(l) % 4):])
+    for l in re.split(b'(\x81\x42|\x81\x48|\x20|\x00)', seq[(len(seq) % 4):]):
+        if (len(l) >= 2):
+            enc_seq.append(l.decode("shift-jis", "ignore"))
 
-    seq = "".join(enc_seq)
-
-    return seq
+    # print(enc_seq)
+    return("".join(enc_seq))
 
 
 def read_hex(hexf, offset = 0, translate = False):
