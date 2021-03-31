@@ -38,17 +38,23 @@ def main():
     tmp = None
     while True:
         p.stdout.flush()
-        seq = p.stdout.readline().strip().split(b" 0 ")[0]
+        seq = p.stdout.readline().strip()
+        try:
+            seq = seq.decode("ascii")
+            seq = bytes.fromhex(seq[:-1])
+
+        except ValueError:
+            continue
+
         if (len(seq) > 20):
             if (tmp != seq) and (seq):
                 seq = utils.encode_seq(seq[:-1])
-                seq = utils.read_hex(seq, translate=False)
-                h_key = hashlib.sha224(str(seq).encode("utf8")).hexdigest()
+                h_key = hashlib.sha224(seq.encode("utf8")).hexdigest()
 
 
-                print("DIRECT: ", seq)
+                # print("DIRECT: ", seq)
                 if h_key in trans_table:
-                    # print("TRANS TABLE: ", translator.translate(trans_table[h_key], lang_tgt='en'))
+                    print("TRANS TABLE: ", translator.translate(trans_table[h_key], lang_tgt='en'))
                     print("TRANS TABLE: ", trans_table[h_key])
 
                 print()
