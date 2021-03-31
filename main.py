@@ -46,13 +46,13 @@ def main():
                 continue
 
             if (tmp != seq) and (seq):
-                seq = utils.encode_seq(seq)
+                seq = utils.encode_seq(seq).strip()
                 h_key = hashlib.sha224(seq.encode("utf8")).hexdigest()
 
 
                 print("DIRECT: ", seq)
                 if h_key in trans_table:
-                    print("TRANS TABLE: ", translator.translate(trans_table[h_key], lang_tgt='en'))
+                    # print("TRANS TABLE: ", translator.translate(trans_table[h_key], lang_tgt='en'))
                     print("TRANS TABLE: ", trans_table[h_key])
 
                 print()
