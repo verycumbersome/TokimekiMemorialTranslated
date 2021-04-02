@@ -15,7 +15,6 @@ def encode_seq(seq):
     seq = max(seq.split(b"\x00"), key=len)
 
     enc_seq = []
-    # for s in re.split(b'(\x81\x42|\x81\x48|\x20|\x71)', seq):
     for s in re.split(b'(\x81\x42|\x81\x48|\x20)', seq):
         if (len(s) >= 2):
             enc_seq.append(s[len(s) % 2:].decode("shift-jis", "ignore"))
