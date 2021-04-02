@@ -7,7 +7,7 @@ import hashlib
 import subprocess
 from google_trans_new import google_translator
 
-import translation
+# import translation
 import utils
 
 if (not os.path.isfile("translation_table.json")):
@@ -21,11 +21,11 @@ translator = google_translator()
 
 def handle_dup(seq):
     """Takes string sequence and checks for duplicates"""
-    dup = seq.split(" ")
+    dup = seq.split(b" ")
     dup = sum([dup[c] == dup[(c+1)%len(dup)] for c in range(len(dup))])
 
     if dup > 10:
-        seq = " ".join(seq.split(" ")[::2])
+        seq = b"".join(seq.split(b" ")[::2])
 
     return seq
 
@@ -35,29 +35,34 @@ def main():
                          stdout=subprocess.PIPE,
                          cwd="./Avocado")
 
-    tmp = None
+    tmp = dialog = name = None
     while True:
-        for seq in p.stdout.readline().strip().split(b" 0 "):
-            try:
-                seq = seq.decode("ascii")
-                seq = bytes.fromhex(seq[:-1])
+        seq = p.stdout.readline().lstrip(b"0 ").rstrip(b" \n")
+        seq = seq.decode("ascii")
 
-            except ValueError:
-                continue
+        try:
+            if "[NAME]" in seq:
+                seq = seq.split("[NAME]")[0]
+                seq = bytes.fromhex(seq)
+                name = utils.encode_seq(seq)
+            else:
+                seq = bytes.fromhex(seq)
+        except:
+            continue
 
-            if (tmp != seq) and (seq):
-                seq = utils.encode_seq(seq).strip()
-                h_key = hashlib.sha224(seq.encode("utf8")).hexdigest()
+        if (tmp != seq) and (seq):
+            seq = utils.encode_seq(seq).strip()
+            h_key = hashlib.sha224(seq.encode("utf8")).hexdigest()
 
-
-                print("DIRECT: ", seq)
-                if h_key in trans_table:
-                    # print("TRANS TABLE: ", translator.translate(trans_table[h_key], lang_tgt='en'))
-                    print("TRANS TABLE: ", trans_table[h_key])
-
+            print("DIRECT: ", seq)
+            if h_key in trans_table:
+                # os.system("clear")
+                print("NAME: ", name)
+                print("TRANS TABLE: ", trans_table[h_key])
                 print()
 
-                tmp = seq
+            tmp = seq
+
 
 
 if __name__=="__main__":
