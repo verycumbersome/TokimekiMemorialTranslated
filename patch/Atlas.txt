@@ -1,0 +1,21 @@
+//GAME NAME:		TokiMeki Memorial
+
+// Define required TABLE variables and load the corresponding tables
+// #VAR(hira, TABLE)
+// #ADDTBL("hira.tbl", hira)
+// #ACTIVETBL(hira) // Activate this block's starting TABLE
+
+#VAR(dialog, TABLE)
+#ADDTBL("game.tbl", dialog)
+#ACTIVETBL(dialog) // Activate this block's starting TABLE
+
+#VAR(pointerNum, CALCVAR) // create a CALCVAR variable named pointerNum
+#CALC(pointerNum, "0") // initialize pointerNum to 0
+
+
+#JMP($0, $8f50f) // Jump to insertion point
+#WLB($29D71E50)
+#JMP($8F510, $29D71E50)
+#CALC(pointerNum, "!pointerNum + 1")
+//a[line]
+ｗｈａｔ　ｓｈｏｕｌｄ　ｉ　ｄｏ　ｔｏｄａｙ[end]
