@@ -16,6 +16,9 @@ if (not os.path.isfile("translation_table.json")):
 with open("translation_table.json") as table_fp:
     trans_table = json.load(table_fp)
 
+with open("dialog_table.json") as table_fp:
+    trans_table = json.load(table_fp)
+
 translator = google_translator()
 
 
@@ -44,14 +47,14 @@ def main():
             if "[NAME]" in seq:
                 seq = seq.split("[NAME]")[0]
                 seq = bytes.fromhex(seq)
-                name = utils.encode_seq(seq)
+                name = utils.decode_seq(seq)
             else:
                 seq = bytes.fromhex(seq)
         except:
             continue
 
         if (tmp != seq) and (seq):
-            seq = utils.encode_seq(seq).strip()
+            seq = utils.decode_seq(seq).strip()
             h_key = hashlib.sha224(seq.encode("utf8")).hexdigest()
 
             print("DIRECT: ", seq)

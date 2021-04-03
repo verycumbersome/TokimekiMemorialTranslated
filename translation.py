@@ -9,8 +9,11 @@ import mmap
 import hashlib
 
 from transformers import pipeline
+from google_trans_new import google_translator
 
 import utils
+
+translator = google_translator()
 
 
 def check_validity(seq):
@@ -43,12 +46,16 @@ def create_table(filename):
 
         if ((end - curr) < 300):
             seq = mm[curr:end]  # Sentence
-            seq = utils.encode_seq(seq).strip()
+            seq = utils.decode_seq(seq).strip()
 
             if not (check_validity(seq) < 1):
-                # Hash sequence for key
                 h_key = hashlib.sha224(seq.encode("utf8")).hexdigest()
-                table[h_key] = seq
+                table[h_key] = {
+                    "seq":seq,
+                    "addr":hex(curr)
+                }
+
+                print(hex(curr))
 
                 # if "あー、今日も疲れたな。急いで、家に帰ろう。" in seq:
                     # print(seq)
@@ -65,7 +72,41 @@ def create_table(filename):
     print("Table length:", len(table))
     return table
 
+
+def translate_table(filename):
+    table = json.load(open(filename, "r"))
+
+    translation_table = {}
+    for item in tqdm.tqdm(table):
+        try:
+            text = translator.translate(table[item], lang_tgt="en")
+            translation_table[item] = text
+            print(text, end="\r")
+
+        except:
+            translation_table[item] = table[item]
+            print("banned from google", end="\r")
+            continue
+
+    return translation_table
+
+def parse_shiftjis_table(filename):
+
+
+def encode_english(seq):
+    # enc = [chr(int(x.encode().hex(), 16) + 0x8220) for x in seq]
+    seq = seq.lower()
+    enc = "".join([hex(int(x.encode().hex(), 16) + 0x8220)[2:] for x in seq])
+
+    print(bytes.fromhex(enc).decode("shift-jis", "ignore"))
+
+
+
 if __name__=="__main__":
-    with open("translation_table.json", "w") as json_file:
-        translation_table = create_table("/Users/matthewjordan/Library/Application Support/avocado/iso/Tokimeki Memorial - Forever with You (Japan)/Tokimeki Memorial - Forever with You (Japan) (Track 1).bin")
-        json.dump(translation_table, json_file, indent=4)
+    # dialog_table = create_table("/Users/matthewjordan/Library/Application Support/avocado/iso/Tokimeki Memorial - Forever with You (Japan)/Tokimeki Memorial - Forever with You (Japan) (Track 1).bin")
+    # json.dump(dialog_table, open("dialog_table.json", "w"), indent=4)
+
+    # translation_table = translate_table("dialog_table.json")
+    # json.dump(translation_table, open("translation_table.json", "w"), indent=4)
+
+    encode_english("what should i do today?")
