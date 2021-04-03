@@ -90,8 +90,6 @@ def translate_table(filename):
 
     return translation_table
 
-def parse_shiftjis_table(filename):
-
 
 def encode_english(seq):
     # enc = [chr(int(x.encode().hex(), 16) + 0x8220) for x in seq]
@@ -109,4 +107,5 @@ if __name__=="__main__":
     # translation_table = translate_table("dialog_table.json")
     # json.dump(translation_table, open("translation_table.json", "w"), indent=4)
 
-    encode_english("what should i do today?")
+    # encode_english("what should i do today?")
+    parse_shift_table("shiftjis_table.txt")
