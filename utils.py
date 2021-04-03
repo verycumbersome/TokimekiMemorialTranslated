@@ -9,7 +9,7 @@ from google_trans_new import google_translator
 translator = google_translator()
 
 
-def encode_seq(seq):
+def decode_seq(seq):
     """Encodes hex string into shift-jis ascii string"""
     # seq = seq[len(seq) % 4:]
     seq = max(seq.split(b"\x00"), key=len)
@@ -31,4 +31,4 @@ if __name__=="__main__":
 
         print(seq.decode("shift-jis", "ignore"))
 
-        print(encode_seq(seq))
+        print(decode_seq(seq))
