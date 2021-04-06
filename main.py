@@ -7,30 +7,23 @@ import hashlib
 import subprocess
 from google_trans_new import google_translator
 
-# import translation
 import utils
+import config
+import translation
 
-if (not os.path.isfile("translation_table.json")):
-    translation.create_table("/Users/matthewjordan/Library/Application Support/avocado/iso/Tokimeki Memorial - Forever with You (Japan)/Tokimeki Memorial - Forever with You (Japan) (Track 1).bin")
+path = os.path.dirname(__file__)
+# if (not os.path.isfile("translation_table.json")):
+    # translation.create_table(config.TOKIMEKI_PATH)
 
-with open("translation_table.json") as table_fp:
-    trans_table = json.load(table_fp)
+# with open(os.path.join(path, "patch/translation_table.json")) as table_fp:
+    # trans_table = json.load(table_fp)
 
-with open("dialog_table.json") as table_fp:
+OFFSET = 0x62E5198
+
+with open(os.path.join(path, "patch/dialog_table.json")) as table_fp:
     trans_table = json.load(table_fp)
 
 translator = google_translator()
-
-
-def handle_dup(seq):
-    """Takes string sequence and checks for duplicates"""
-    dup = seq.split(b" ")
-    dup = sum([dup[c] == dup[(c+1)%len(dup)] for c in range(len(dup))])
-
-    if dup > 10:
-        seq = b"".join(seq.split(b" ")[::2])
-
-    return seq
 
 
 def main():
@@ -62,10 +55,11 @@ def main():
                 # os.system("clear")
                 print("NAME: ", name)
                 print("TRANS TABLE: ", trans_table[h_key])
+                print("ADDR", hex(int(trans_table[h_key]["addr"][2:], 16) - OFFSET))
                 print()
+                0x3486a7
 
             tmp = seq
-
 
 
 if __name__=="__main__":
