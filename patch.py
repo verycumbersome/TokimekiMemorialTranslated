@@ -111,6 +111,33 @@ def create_shiftjis_table(filename, create_atlas=False):
 
     return tbl
 
+def read_ptr_table(seq):
+    """Read ps1 pointer table from file"""
+    seq = [x + "80" for x in seq.replace(" ", "").split("80")[0::2]]
+
+    for ptr in seq:
+        ptr = read_ptr(ptr)
+
+        print(ptr)
+
+    # print(seq)
+
+
+def parse_shift_table(filename):
+    """Quick util to generate shift-jis atlas table"""
+    shift_table = open(os.path.join(path, filename), "r")
+
+    with open(os.path.join(path, "patch/game.tbl"), "w") as table:
+        table.write(config.TABLE_HEADER)
+        for line in tqdm.tqdm(shift_table.readlines()):
+            line = line.split("#")[0].split("\t")[:2]
+
+            left = str(line[0][2:])
+            right = bytes.fromhex(left).decode("shift-jis", "ignore")
+
+            if left and right and not any(re.findall("<|>", right, re.IGNORECASE)):
+                table.writelines(left + "=" + right + "\n")
+
 
 def create_atlas(bin_path, dialog_path, trans_path):
     """Create Atlas file for referencing dialog translations in ROM"""
