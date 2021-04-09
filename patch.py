@@ -16,6 +16,26 @@ import utils
 import config
 
 path = os.path.dirname(__file__)
+shiftjis_table = None
+
+table_delim = b"\x00\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\x00"
+
+def get_ptr_tables(bin_path):
+    f_ptr = os.open(os.path.join(path, bin_path), os.O_RDWR)
+    mm = mmap.mmap(f_ptr, 0, prot=mmap.PROT_READ)
+
+    end = 131676736
+
+    table_idx = mm.rfind(table_delim, config.MEM_MIN, end)
+    while (table_idx > 1):
+        table_idx = mm.rfind(table_delim, config.MEM_MIN, end)
+
+        table = mm[table_idx:end][len(table_delim):].hex()
+        table = table.split("0000080000000800")
+
+        end = table_idx
+
+
 
 def read_ptr(ptr):
     """Read ps1 pointer from file"""
@@ -25,32 +45,71 @@ def read_ptr(ptr):
     return ptr
 
 
-def read_ptr_table(seq):
-    """Read ps1 pointer table from file"""
-    seq = [x + "80" for x in seq.replace(" ", "").split("80")[0::2]]
+def get_tbl_addrs(table, ram_start, rom_start):
+    """Read a pointer table and return relative ROM and RAM address for each pointer
 
-    for ptr in seq:
-        ptr = read_ptr(ptr)
+    Args:
+        table: Input pointer table to parse
+        ram_start: Start address for table position in RAM
+        rom_start: Start address for table position in ROM
 
-        print(ptr)
+    Returns:
+        Returns dict of relative pointer addresses
 
-    # print(seq)
+    """
+
+    out = []
+    table = seqs = table.replace(" ", "")
+    while (seqs.find("80") > 0):
+        ptr_idx = seqs.rfind("80")
+        ptr = read_ptr(seqs[ptr_idx - 6:ptr_idx + 2])
+
+        ptr = int(ptr[2:], 16)
+
+        offset = ptr - ram_start
+        out.append({
+            "address":hex(offset + rom_start),
+            "pointer":hex(ptr),
+        })
+
+        seqs = seqs[:ptr_idx - 6]
+
+    return out
 
 
-def parse_shift_table(filename):
-    """Quick util to generate shift-jis atlas table"""
+def create_shiftjis_table(filename, create_atlas=False):
+    """Quick util to generate shift-jis atlas table
+
+    Args:
+        filename: Filename for the shift-jis translation rules
+        create_atlas: Boolean for whether to create atlas shift-jis table
+
+    Returns:
+        Returns encoding table for shift-jis as a dict
+
+    """
+
+    print(shiftjis_table)
     shift_table = open(os.path.join(path, filename), "r")
 
-    with open(os.path.join(path, "patch/game.tbl"), "w") as table:
-        table.write(config.TABLE_HEADER)
-        for line in tqdm.tqdm(shift_table.readlines()):
-            line = line.split("#")[0].split("\t")[:2]
+    tbl = {}
+    for line in tqdm.tqdm(shift_table.readlines()):
+        line = line.split("#")[0].split("\t")[:2]
 
-            left = str(line[0][2:])
-            right = bytes.fromhex(left).decode("shift-jis", "ignore")
+        left = str(line[0][2:])
+        right = bytes.fromhex(left).decode("shift-jis", "ignore")
 
-            if left and right and not any(re.findall("<|>", right, re.IGNORECASE)):
-                table.writelines(left + "=" + right + "\n")
+        if left and right and not any(re.findall("<|>", right, re.IGNORECASE)):
+            tbl[left] = right
+
+    if create_atlas:
+        with open(os.path.join(path, "patch/Atlas.tbl"), "w") as table:
+            table.write(config.TABLE_HEADER)
+
+            for item in tbl:
+                table.writelines(item + "=" + tbl[item] + "\n")
+
+    return tbl
 
 
 def create_atlas(bin_path, dialog_path, trans_path):
@@ -70,9 +129,6 @@ def create_atlas(bin_path, dialog_path, trans_path):
             addr = dialog_table[item]["addr"]
             seq_size = sys.getsizeof(seq)
 
-            if int(addr[2:], 16) < 0x08F510:
-                continue
-
             # mm.seek(write_ptr)
             # mm.write(utils.encode_english("asdf"))
             write_ptr += seq_size
@@ -87,12 +143,13 @@ def create_atlas(bin_path, dialog_path, trans_path):
 
 
 if __name__=="__main__":
-    # parse_shift_table(os.path.join(path, "patch/shiftjis_table.txt"))
+    # get_ptr_tables(config.TOKIMEKI_PATH)
+    # shiftjis_table = create_shiftjis_table(os.path.join(path, "patch/shiftjis_table.txt"))
 
-    # read_ptr_table(input())
+    with open("test_table.txt", "r") as test_table_fp:
+        get_tbl_addrs(test_table_fp.read(), 0x19C804, 0x6481998)
 
-    create_atlas(
-        os.path.join(path, "patch/Atlas.bin"),
-        os.path.join(path, "patch/dialog_table.json"),
-        os.path.join(path, "patch/translation_table.json"),
-    )
+    # create_atlas(
+        # os.path.join(path, "patch/Atlas.bin"),
+        # os.path.join(path, "patch/dialog_table.json"),
+        # os.path.join(path, "patch/translation_table.json"),

@@ -7,8 +7,11 @@
 #VAR(ptr, CUSTOMPOINTER)
 #CREATEPTR(ptr, "LINEAR", $0, 32)
 
-//#SETPTRFILE(“patch.bin”)
-#JMP($8F510) // Jump to insertion point
+
+
+//#SETTARGETFILE("patch.bin")
+#SETPTRFILE("patch.bin")
+#JMP($8F510)
 
 #WRITE(ptr, $29D71E50)
 ｗｈａｔ　ｓｈｏｕｌｄ　ｉ ｄｏ　ｔｏｄａｙ[end]
