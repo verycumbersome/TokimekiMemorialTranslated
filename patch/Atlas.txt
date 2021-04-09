@@ -1,0 +1,17 @@
+//GAME NAME:        TokiMeki Memorial
+
+#VAR(dialog, TABLE)
+#ADDTBL("Atlas.tbl", dialog)
+#ACTIVETBL(dialog) // Activate this block's starting TABLE
+
+#VAR(ptr, CUSTOMPOINTER)
+#CREATEPTR(ptr, "LINEAR", $0, 32)
+
+
+
+//#SETTARGETFILE("patch.bin")
+#SETPTRFILE("patch.bin")
+#JMP($8F510)
+
+#WRITE(ptr, $29D71E50)
+ｗｈａｔ　ｓｈｏｕｌｄ　ｉ ｄｏ　ｔｏｄａｙ[end]
