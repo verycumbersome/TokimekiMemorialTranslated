@@ -18,24 +18,6 @@ import config
 path = os.path.dirname(__file__)
 shiftjis_table = None
 
-table_delim = b"\x00\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\x00"
-
-def get_ptr_tables(bin_path):
-    f_ptr = os.open(os.path.join(path, bin_path), os.O_RDWR)
-    mm = mmap.mmap(f_ptr, 0, prot=mmap.PROT_READ)
-
-    end = 131676736
-
-    table_idx = mm.rfind(table_delim, config.MEM_MIN, end)
-    while (table_idx > 1):
-        table_idx = mm.rfind(table_delim, config.MEM_MIN, end)
-
-        table = mm[table_idx:end][len(table_delim):].hex()
-        table = table.split("0000080000000800")
-
-        end = table_idx
-
-
 
 def read_ptr(ptr):
     """Read ps1 pointer from file"""
@@ -45,34 +27,72 @@ def read_ptr(ptr):
     return ptr
 
 
-def get_tbl_addrs(table, ram_start, rom_start):
+def get_ptr_tables(bin_path):
+    """ Get all pointers from table with associated data
+
+    Args:
+        bin_path: Path for game bin file
+
+    Returns:
+        Returns dict of pointer tables with associated data
+
+    """
+
+    f_ptr = os.open(os.path.join(path, bin_path), os.O_RDWR)
+    mm = mmap.mmap(f_ptr, 0, prot=mmap.PROT_READ)
+
+    tables = {}
+    end = config.MEM_MAX
+
+    while (True):
+        table_idx = mm.rfind(config.TABLE_SEP, config.MEM_MIN, end)
+        if (table_idx < 1):
+            break
+
+        table = mm[table_idx:end][len(config.TABLE_SEP):].hex()
+        tid = table[:8]
+        table = table[8:].lstrip()
+
+        addr = get_tbl_addrs(table, table_idx + 0x18)
+        if addr:
+            tables[tid] = addr
+
+        end = table_idx
+
+
+    print(json.dumps(tables, indent=4))
+    # print(len(tables))
+
+
+def get_tbl_addrs(tbl, rom_start):
     """Read a pointer table and return relative ROM and RAM address for each pointer
 
     Args:
-        table: Input pointer table to parse
-        ram_start: Start address for table position in RAM
-        rom_start: Start address for table position in ROM
+        tbl: Input pointer table to parse
+        rom_start: Start address for tbl position in ROM
 
     Returns:
         Returns dict of relative pointer addresses
 
     """
 
-    out = []
-    table = seqs = table.replace(" ", "")
-    while (seqs.find("80") > 0):
-        ptr_idx = seqs.rfind("80")
-        ptr = read_ptr(seqs[ptr_idx - 6:ptr_idx + 2])
+    if not tbl.find("80") > 6:
+        return None
+
+    out = {}
+    tbl = tbl.replace(" ", "")
+    ram_start = int(read_ptr(tbl[tbl.find("80") - 6:tbl.find("80") + 2])[2:], 16)
+
+    while (tbl.find("80") > 6):
+        ptr_idx = tbl.rfind("80")
+        ptr = read_ptr(tbl[ptr_idx - 6:ptr_idx + 2])
 
         ptr = int(ptr[2:], 16)
 
         offset = ptr - ram_start
-        out.append({
-            "address":hex(offset + rom_start),
-            "pointer":hex(ptr),
-        })
+        out[hex(offset + rom_start)] = hex(ptr)
 
-        seqs = seqs[:ptr_idx - 6]
+        tbl = tbl[:ptr_idx - 6]
 
     return out
 
@@ -110,17 +130,6 @@ def create_shiftjis_table(filename, create_atlas=False):
                 table.writelines(item + "=" + tbl[item] + "\n")
 
     return tbl
-
-def read_ptr_table(seq):
-    """Read ps1 pointer table from file"""
-    seq = [x + "80" for x in seq.replace(" ", "").split("80")[0::2]]
-
-    for ptr in seq:
-        ptr = read_ptr(ptr)
-
-        print(ptr)
-
-    # print(seq)
 
 
 def parse_shift_table(filename):
@@ -170,11 +179,11 @@ def create_atlas(bin_path, dialog_path, trans_path):
 
 
 if __name__=="__main__":
-    # get_ptr_tables(config.TOKIMEKI_PATH)
+    get_ptr_tables(config.TOKIMEKI_PATH)
     # shiftjis_table = create_shiftjis_table(os.path.join(path, "patch/shiftjis_table.txt"))
 
-    with open("test_table.txt", "r") as test_table_fp:
-        get_tbl_addrs(test_table_fp.read(), 0x19C804, 0x6481998)
+    # with open("test_table.txt", "r") as test_table_fp:
+        # get_tbl_addrs(test_table_fp.read(), 0x19C804, 0x6481998)
 
     # create_atlas(
         # os.path.join(path, "patch/Atlas.bin"),
