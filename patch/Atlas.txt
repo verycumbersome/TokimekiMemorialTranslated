@@ -2,26 +2,13 @@
 
 #VAR(dialog, TABLE)
 #ADDTBL("Atlas.tbl", dialog)
-#ACTIVETBL(dialog)
+#ACTIVETBL(dialog) // Activate this block's starting TABLE
 
 #VAR(ptr, CUSTOMPOINTER)
 #CREATEPTR(ptr, "LINEAR", $0, 32)
 
-//#JMP($8F50F)
-//#WRITE(ptr, $29D71E50)
-//#JMP($29D71E50)
-//ｗｈａｔ　ｓｈｏｕｌｄ　ｉ ｄｏ　ｔｏｄａｙ[end]
+//#SETPTRFILE(“patch.bin”)
+#JMP($8F510) // Jump to insertion point
 
-<<<<<<< HEAD
-//#JMP($579155C)
-
-#JMP($29D71E50)
-W32(ptr, $56350D4)
-=======
-
-#JMP($8F50F)
 #WRITE(ptr, $29D71E50)
-#JMP($29D71E50)
->>>>>>> efb34d9b7550b8ce7b6f6f4072f026d929b5161f
 ｗｈａｔ　ｓｈｏｕｌｄ　ｉ ｄｏ　ｔｏｄａｙ[end]
-

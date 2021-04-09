@@ -57,7 +57,7 @@ def create_atlas(bin_path, dialog_path, trans_path):
     """Create Atlas file for referencing dialog translations in ROM"""
     f_ptr = os.open(os.path.join(path, bin_path), os.O_RDWR)
     mm = mmap.mmap(f_ptr, 0, prot=mmap.PROT_READ)
-    write_ptr = 0x0
+    write_ptr = 0x29D3E3BE
 
     dialog_table = json.load(open(os.path.join(path, dialog_path), "r"))
     translation_table = json.load(open(os.path.join(path, trans_path), "r"))
@@ -70,24 +70,29 @@ def create_atlas(bin_path, dialog_path, trans_path):
             addr = dialog_table[item]["addr"]
             seq_size = sys.getsizeof(seq)
 
-            mm.seek(write_ptr)
-            mm.write(utils.encode_english("asdf"))
+            if int(addr[2:], 16) < 0x08F510:
+                continue
+
+            # mm.seek(write_ptr)
+            # mm.write(utils.encode_english("asdf"))
             write_ptr += seq_size
 
-            # line_buf = f"#JMP(${addr[2:]}) // Jump to insertion point\n"
-            # line_buf += f"#WRITE(ptr, ${hex(write_ptr)[2:]})\n"
+            print(addr[2:])
+            print(hex(write_ptr)[2:])
+            line_buf = f"#JMP(${addr[2:]}) // Jump to insertion point\n"
+            line_buf += f"#WRITE(ptr, ${hex(write_ptr)[2:]})\n"
             # line_buf += f"{seq}\n\n"
-            # line_buf += "ｗｈａｔ　ｓｈｏｕｌｄ\n\n"
+            line_buf += "ｗｈａｔ　ｓｈｏｕｌｄ[end]\n\n"
             atlas_file.writelines(line_buf)
 
 
 if __name__=="__main__":
     # parse_shift_table(os.path.join(path, "patch/shiftjis_table.txt"))
 
-    read_ptr_table(input())
+    # read_ptr_table(input())
 
-    # create_atlas(
-        # os.path.join(path, "patch/Atlas.bin"),
-        # os.path.join(path, "patch/dialog_table.json"),
-        # os.path.join(path, "patch/translation_table.json"),
-    # )
+    create_atlas(
+        os.path.join(path, "patch/Atlas.bin"),
+        os.path.join(path, "patch/dialog_table.json"),
+        os.path.join(path, "patch/translation_table.json"),
+    )

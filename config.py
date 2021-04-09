@@ -13,13 +13,13 @@ TABLE_HEADER = """# start table is @hiragana
 ATLAS_HEADER = """//GAME NAME:        TokiMeki Memorial
 
 #VAR(dialog, TABLE)
-#ADDTBL("game.tbl", dialog)
+#ADDTBL("Atlas.tbl", dialog)
 #ACTIVETBL(dialog) // Activate this block's starting TABLE
 
 #VAR(ptr, CUSTOMPOINTER)
 #CREATEPTR(ptr, "LINEAR", $0, 32)
 
-#SETPTRFILE(“patch.bin”)
+//#SETPTRFILE(“patch.bin”)
 #JMP($8F510) // Jump to insertion point
 
 #WRITE(ptr, $29D71E50)
