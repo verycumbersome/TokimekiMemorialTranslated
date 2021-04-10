@@ -1,5 +1,5 @@
 MEM_MAX = 0x67FFFFF
-MEM_MIN = 0x6362FD8
+MEM_MIN = 0x6162FD8
 TABLE_SEP = b"\x00\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\x00"
 
 TOKIMEKI_PATH = "/Users/matthewjordan/Library/Application Support/avocado/iso/Tokimeki Memorial - Forever with You (Japan)/Tokimeki Memorial - Forever with You (Japan) (Track 1).bin"

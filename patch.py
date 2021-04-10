@@ -50,8 +50,13 @@ def get_ptr_tables(bin_path):
             break
 
         table = mm[table_idx:end][len(config.TABLE_SEP):].hex()
+        print(table)
         tid = table[:8]
-        table = table[8:].lstrip()
+        table = table[0x18:]
+        # table = table[0x18:].lstrip()
+        # print(table)
+        # print(hex(table_idx + 0x18))
+        # print()
 
         addr = get_tbl_addrs(table, table_idx + 0x18)
         if addr:
@@ -60,7 +65,13 @@ def get_ptr_tables(bin_path):
         end = table_idx
 
 
-    print(json.dumps(tables, indent=4))
+    # for tid in tables:
+        # for ptr in tables[tid]:
+            # if "0x6481" in ptr:
+                # print(tables[tid][ptr])
+                # print("asdf")
+
+    # print(json.dumps(tables, indent=4))
     # print(len(tables))
 
 
