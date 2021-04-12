@@ -71,18 +71,20 @@ def decode_seq(seq):
 
 if __name__=="__main__":
     text = input()
-    for seq in text.split(" 0 "):
-        seq = seq.replace("47", "")
-        seq = seq.replace(" ", "")
-        seq = bytes.fromhex(seq)
 
-        seq = seq.decode("shift-jis", "ignore")
-        print(seq)
+    print(encode_english(text))
+    # for seq in text.split(" 0 "):
+        # seq = seq.replace("47", "")
+        # seq = seq.replace(" ", "")
+        # seq = bytes.fromhex(seq)
 
-        seq = translator.translate(seq, lang_tgt="en")
-        print(seq)
+        # seq = seq.decode("shift-jis", "ignore")
+        # print(seq)
 
-        seq = encode_english(seq)
-        print(seq)
+        # seq = translator.translate(seq, lang_tgt="en")
+        # print(seq)
+
+        # seq = encode_english(seq)
+        # print(seq)
 
         # print(decode_seq(seq))
