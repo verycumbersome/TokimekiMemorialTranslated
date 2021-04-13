@@ -53,10 +53,6 @@ def get_ptr_tables(bin_path):
         print(table)
         tid = table[:8]
         table = table[0x18:]
-        # table = table[0x18:].lstrip()
-        # print(table)
-        # print(hex(table_idx + 0x18))
-        # print()
 
         addr = get_tbl_addrs(table, table_idx + 0x18)
         if addr:

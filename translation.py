@@ -27,6 +27,7 @@ def create_table(filename):
     pbar = tqdm.tqdm(total=len(mm))
 
     counter = 0
+    #TODO make sentence search better
     while (per_idx > 1 and qst_idx > 1):
         per_idx = mm.rfind(b"\x81\x42", config.MEM_MIN, end)  # Period
         qst_idx = mm.rfind(b"\x81\x48", config.MEM_MIN, end)  # Question mark

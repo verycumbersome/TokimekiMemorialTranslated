@@ -52,7 +52,6 @@ def main():
 
             print("DIRECT: ", seq)
             if h_key in trans_table:
-                # os.system("clear")
                 print("NAME: ", name)
                 print("TRANS TABLE: ", trans_table[h_key])
                 print("ADDR", hex(int(trans_table[h_key]["addr"][2:], 16) - OFFSET))
