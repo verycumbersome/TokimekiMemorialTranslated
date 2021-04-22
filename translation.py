@@ -46,7 +46,7 @@ def create_table(filename):
                     "addr":hex(curr)
                 }
 
-                print(seq)
+                print("SEQ:",seq)
                 print()
                 print(utils.check_validity(seq))
 
