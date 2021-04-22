@@ -51,6 +51,7 @@ def get_ptr_tables(bin_path):
 
         table = mm[table_idx:end][len(config.TABLE_SEP):].hex()
         print(table)
+        print()
         tid = table[:8]
         table = table[0x18:]
 
