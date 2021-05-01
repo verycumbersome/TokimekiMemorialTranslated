@@ -3,11 +3,14 @@ import os
 import re
 import mmap
 
+import numpy as np
+
 from textwrap import wrap
 from google_trans_new import google_translator
 
 path = os.path.dirname(__file__)
 translator = google_translator()
+
 
 
 def handle_dup(seq):
