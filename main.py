@@ -5,11 +5,12 @@ import json
 
 import hashlib
 import subprocess
-from google_trans_new import google_translator
 
 import utils
 import config
 import translation
+
+from google_trans_new import google_translator
 
 path = os.path.dirname(__file__)
 # if (not os.path.isfile("translation_table.json")):
