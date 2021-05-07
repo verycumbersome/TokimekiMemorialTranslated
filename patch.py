@@ -1,17 +1,15 @@
 #!/usr/bin/env python3
+"""
+All ROM utils for patching the translations back into the game
+"""
+
 import os
 import re
 import sys
 import json
-import time
 
 import tqdm
 import mmap
-import hashlib
-import numpy as np
-
-from transformers import pipeline
-from google_trans_new import google_translator
 
 import utils
 import config
@@ -45,9 +43,9 @@ def get_ptr_tables(bin_path):
     tables = {}
     end = config.MEM_MAX
 
-    while (True):
+    while True:
         table_idx = mm.rfind(config.TABLE_SEP, config.MEM_MIN, end)
-        if (table_idx < 1):
+        if table_idx < 1:
             break
 
         table = mm[table_idx:end][len(config.TABLE_SEP):].hex()
@@ -93,7 +91,7 @@ def get_tbl_addrs(table):
         return None
 
     tbl = table.replace(" ", "")
-    while (tbl.find("80") > 6):
+    while tbl.find("80") > 6:
         ptr_idx = tbl.rfind("80")
         ptr = read_ptr(tbl[ptr_idx - 6:ptr_idx + 2])
         ptr = int(ptr[2:], 16)
@@ -114,7 +112,7 @@ def get_tbl_addrs(table):
     for sentence in tbl.split("00"):
         try:
             seq = utils.decode_seq(bytes.fromhex(sentence))
-            if (utils.check_validity(seq) > 0.7):
+            if utils.check_validity(seq) > 0.7:
                 sentences.append(sentence)
         except:
             pass

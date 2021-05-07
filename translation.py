@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
-import os
-import re
-import json
-import time
+"""
+All utils for translation and encoding from the ROM hex values
+"""
 
-import tqdm
+import os
+import json
+
 import mmap
 import hashlib
+import tqdm
 
-from transformers import pipeline
 from google_trans_new import google_translator
 
 import utils

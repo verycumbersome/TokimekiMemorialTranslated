@@ -10,4 +10,8 @@ English: Unfortunately, I speak only a little Japanese..
 Japanese:
 """
 
-response = openai.Completion.create(engine="davinci", prompt=prompt, max_tokens=5)
+response = openai.Completion.create(
+        engine="davinci",
+        prompt=prompt,
+        max_tokens=5
+    )

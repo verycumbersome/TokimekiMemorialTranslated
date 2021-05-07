@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+"""
+Main function for running the patched game
+"""
+
 import os
 import re
 import json
