@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+"""
+Basic utilities across all other modules
+"""
+
 import os
 import re
 import mmap
@@ -25,11 +29,12 @@ def handle_dup(seq):
 
 
 def encode_english(seq):
+    """Check valid shift-jis range for a sequence"""
     enc = []
     for c in seq:
-        if (re.findall("[a-zA-Z]", c)):
+        if re.findall("[a-zA-Z]", c):
             offset = 0x821F
-            if (re.findall("[a-z]", c)):
+            if re.findall("[a-z]", c):
                 offset = 0x8220
 
             c = hex(int(c.encode().hex(), 16) + offset)[2:]
@@ -49,7 +54,7 @@ def check_validity(seq: str) -> int:
     valid = 0
     for c in seq:
         enc_char = int(c.encode("shift-jis", "ignore").hex(), 16)
-        if (0x8140 < enc_char < 0x9FFC):
+        if 0x8140 < enc_char < 0x9FFC:
             valid += 1
 
     if len(seq):
@@ -65,7 +70,7 @@ def decode_seq(seq: bytes) -> str:
 
     enc_seq = []
     for s in re.split(b'(\x81\x42|\x81\x48|\x20)', seq):
-        if (len(s) >= 2):
+        if len(s) >= 2:
             enc_seq.append(s[len(s) % 2:].decode("shift-jis", "ignore"))
 
     return("".join(enc_seq))
