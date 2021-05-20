@@ -59,6 +59,7 @@ def main():
             if h_key in trans_table:
                 print("NAME: ", name)
                 print("TRANS TABLE: ", trans_table[h_key])
+                print("HEX", trans_table[h_key]["seq"].encode("shift-jis").hex())
                 print("ADDR", hex(int(trans_table[h_key]["addr"][2:], 16) - OFFSET))
                 print()
                 0x3486a7
