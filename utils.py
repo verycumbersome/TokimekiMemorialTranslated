@@ -29,22 +29,29 @@ def handle_dup(seq):
 
 
 def encode_english(seq):
-    """Check valid shift-jis range for a sequence"""
+    """encodes an english sequence into equivilant english shift-jis chars"""
     enc = []
+    out = []
     for c in seq:
         if re.findall("[a-zA-Z]", c):
-            offset = 0x821F
+            offset = 0x821F # Shift JIS offset for capital english
             if re.findall("[a-z]", c):
-                offset = 0x8220
+                offset = 0x8220 # Shift JIS offset for lower-case english
 
+            # Split the english S.J hex and convert both halves to int
             c = hex(int(c.encode().hex(), 16) + offset)[2:]
+            enc.append(int(c[:2], 16))
+            enc.append(int(c[2:], 16))
+
+
             c = bytes.fromhex(c).decode("shift-jis", "ignore")
 
-        enc += c
+        out += c
 
-    enc = "".join(enc)
 
-    print(enc.encode("shift-jis", "ignore").hex())
+    out = "".join(out)
+
+    print(out)
 
     return enc
 
@@ -77,7 +84,9 @@ def decode_seq(seq: bytes) -> str:
 
 
 if __name__=="__main__":
-    text = input()
+    # text = input()
+
+    text = "82 D3 81 5B 82 C1 81 41 94 E6 82 EA 82 BD 81 42 20 81 69 92 A9 91 81 82 AD 91 96 82 E9 82 CC 82 CD 81 41 20 8B 43 8E 9D 82 BF 82 AA 82 A2 82 A2 82 C8 82 A0 81 42 81 6A"
 
     # print(encode_english(text))
     for seq in text.split(" 0 "):
@@ -86,10 +95,10 @@ if __name__=="__main__":
         seq = bytes.fromhex(seq)
 
         seq = seq.decode("shift-jis", "ignore")
-        print(seq)
+        # print(seq)
 
         seq = translator.translate(seq, lang_tgt="en")
-        print(seq)
+        # print(seq)
 
         seq = encode_english(seq)
-        print(seq)
+        # print(seq)
