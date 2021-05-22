@@ -1,29 +1,5 @@
 MEM_MAX = 0x67FFFFF
 MEM_MIN = 0x6162FD8
+# MEM_MIN = 0x4162FD8
 TABLE_SEP = b"\x00\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\x00"
-
-TOKIMEKI_PATH = "/Users/matthewjordan/Library/Application Support/avocado/iso/Tokimeki Memorial - Forever with You (Japan)/Tokimeki Memorial - Forever with You (Japan) (Track 1).bin"
-
-TABLE_HEADER = """# start table is @hiragana
-# make sure you view this in a font that contains U+3099/U+309A
-
-@main
-
-/00=[end]
-"""
-
-ATLAS_HEADER = """//GAME NAME:        TokiMeki Memorial
-
-#VAR(dialog, TABLE)
-#ADDTBL("Atlas.tbl", dialog)
-#ACTIVETBL(dialog) // Activate this block's starting TABLE
-
-#VAR(ptr, CUSTOMPOINTER)
-#CREATEPTR(ptr, "LINEAR", $0, 32)
-
-//#SETPTRFILE(“patch.bin”)
-#JMP($8F510) // Jump to insertion point
-
-#WRITE(ptr, $29D71E50)
-ｗｈａｔ　ｓｈｏｕｌｄ　ｉ ｄｏ　ｔｏｄａｙ[end]
-"""
+BIN_PATH = "/home/matthew/.local/share/avocado/iso/Tokimeki Memorial - Forever with You (Japan)/Tokimeki Memorial - Forever with You (Japan) (Track 1).bin"
