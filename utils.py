@@ -6,6 +6,7 @@ Basic utilities across all other modules
 import os
 import re
 import mmap
+import json
 
 import numpy as np
 
@@ -32,22 +33,47 @@ def encode_english(seq):
     """encodes an english sequence into equivilant english shift-jis chars"""
     enc = []
     out = []
+    counter = 0
+    return_flag = False
+
     for c in seq:
+        counter += 1
+
         if re.findall("[a-zA-Z]", c):
             offset = 0x821F # Shift JIS offset for capital english
-            if re.findall("[a-z]", c):
-                offset = 0x8220 # Shift JIS offset for lower-case english
 
-            # Split the english S.J hex and convert both halves to int
-            c = hex(int(c.encode().hex(), 16) + offset)[2:]
+        if re.findall("[a-z]", c):
+            offset = 0x8220 # Shift JIS offset for lower-case english
+
+        if c == ".":
+            offset = 0x8114
+
+        if c == " ":
+            if return_flag:
+                enc.append(0x20)
+                return_flag = False
+                continue
+
+            offset = 0x8120
+
+        if c == "(" or c == ")":
+            offset = 0x8141
+
+        if counter % 12 == 0:
+            return_flag = True
+
+        # Split the english S.J hex and convert both halves to int
+        c = hex(int(c.encode().hex(), 16) + offset)[2:]
+        if len(c) == 4: # If char is 2 bytes 
             enc.append(int(c[:2], 16))
             enc.append(int(c[2:], 16))
 
+        else:
+            enc.append(int(c, 16))
 
-            c = bytes.fromhex(c).decode("shift-jis", "ignore")
+        c = bytes.fromhex(c).decode("shift-jis", "ignore")
 
         out += c
-
 
     out = "".join(out)
 
@@ -100,5 +126,14 @@ if __name__=="__main__":
         seq = translator.translate(seq, lang_tgt="en")
         # print(seq)
 
+        fp = open("pointer_table.json", "w")
         seq = encode_english(seq)
-        # print(seq)
+
+        out = {
+            "0":seq
+        }
+
+        json.dump(
+            out,
+            fp
+        )
