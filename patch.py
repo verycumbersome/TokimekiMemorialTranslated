@@ -15,7 +15,88 @@ import utils
 import config
 
 path = os.path.dirname(__file__)
-shiftjis_table = None
+
+
+class Block:
+    def __init__(self, table, address):
+        self.id = table[:8]
+        self.table = table[24:]
+        self.address = address
+
+        self.pointers = []
+        self.seqs = []
+
+
+    def get_table_pointers(self):
+        tbl = self.table.replace(" ", "")
+
+        # Make the pointer is the correct length
+        if not tbl.find("80") > 6:
+            return None
+
+        # Iterate through table and pop the pointer from the end of the table
+        # while appending each pointer to a list
+        while tbl.find("80") > 6:
+            ptr_idx = tbl.rfind("80")
+            ptr = read_ptr(tbl[ptr_idx - 6:ptr_idx + 2])
+            ptr = int(ptr[2:], 16)  # Convert pointer to int
+
+            if ptr > 0x100000: # Make sure pointer location is sufficiently large
+                self.pointers.append({
+                    "hex":hex(ptr),
+                    "text":tbl[ptr_idx - 6:ptr_idx + 2],
+                    "val":ptr
+                })
+            tbl = tbl[:ptr_idx - 6]
+
+        # Remove all pointers from table
+        tbl = self.table
+        for p in self.pointers:
+            tbl = tbl.replace(p["text"], "[PTR]")
+
+
+    def get_seqs(self):
+        # TODO Fix this bytes fromhex bullshit
+        # Checks to make sure that the sequence is a valid shift-jis sentence
+        for s in tbl.split("00"):
+            try:
+                seq = utils.decode_seq(bytes.fromhex(s))
+                if utils.check_validity(seq) > 0.7:
+                    self.seqs.append(s)
+            except:
+                pass
+
+        # Get sentence indices
+        sentences = sorted([self.table.index(s) for s in self.seqs])
+        self.pointers = sorted(self.pointers, key=lambda x: x["val"])
+
+        best = []
+        for ptr in self.pointers:
+            offset = ptr["val"] - sentences[0] if sentences else 0
+            ptrs = [p["val"] - offset for p in self.pointers]
+
+            matches = [p in sentences for p in ptrs]
+            best.append({"offset":offset, "matches":matches})
+
+        if len(best) > 1:
+            best = max(best, key = lambda x: sum(x["matches"]))
+
+            for i in range(len(self.pointers)):
+                self.pointers[i]["val"] -= best["offset"]
+
+
+    def create_ptr_table(self):
+        for p in self.pointers:
+            if p["val"] >= 0 and p["val"] < len(self.table):
+
+                for s in self.seqs:
+                    if self.table.index(s) == p["val"]:
+                        print(bytes.fromhex(s).decode("shift-jis", "ignore"))
+                        print(p)
+                        print()
+
+
+
 
 
 def read_ptr(ptr):
@@ -71,83 +152,6 @@ def get_ptr_tables(bin_path):
     # print(len(tables))
 
 
-def get_table_pointers(table):
-    """Read a pointer table and return relative ROM and RAM address for each pointer
-
-    Args:
-        tbl: Input pointer table to parse
-        rom_start: Start address for tbl position in ROM
-
-    Returns:
-        Returns dict of relative pointer addresses
-
-    """
-
-    # 34D91980
-    print("34D91980".lower() in table.lower())
-
-    tbl = table.replace(" ", "")
-
-    # Make the pointer is the correct length
-    if not table.find("80") > 6:
-        return None
-
-    # Iterate through table and pop the pointer from the end of the table
-    # while appending each pointer to a list
-    pointers = []
-    while tbl.find("80") > 6:
-        ptr_idx = tbl.rfind("80")
-        ptr = read_ptr(tbl[ptr_idx - 6:ptr_idx + 2])
-        ptr = int(ptr[2:], 16)  # Convert pointer to int
-
-        if ptr > 0x100000: # Make sure pointer location is sufficiently large
-            pointers.append({
-                "hex":hex(ptr),
-                "text":tbl[ptr_idx - 6:ptr_idx + 2],
-                "val":ptr
-            })
-        tbl = tbl[:ptr_idx - 6]
-
-    # Remove all pointers from table
-    tbl = table
-    for p in pointers:
-        tbl = tbl.replace(p["text"], "[PTR]")
-
-    # print(tbl)
-
-    # TODO Fix this bytes fromhex bullshit
-    # Checks to make sure that the sequence is a valid shift-jis sentence
-    sentences = []
-    for sentence in tbl.split("00"):
-        try:
-            seq = utils.decode_seq(bytes.fromhex(sentence))
-            if utils.check_validity(seq) > 0.7:
-                sentences.append(sentence)
-        except:
-            pass
-
-    # Get sentence indices
-    sentences = sorted([table.index(s) for s in sentences]) 
-    text_pointers = sorted(pointers, key=lambda x: x["val"])
-
-    best = []
-    for ptr in text_pointers:
-        offset = ptr["val"] - sentences[0] if sentences else 0
-        ptrs = [p["val"] - offset for p in text_pointers]
-
-        matches = [p in sentences for p in ptrs]
-        best.append({"offset":offset, "matches":matches})
-
-    if len(best) > 1:
-        best = max(best, key = lambda x: sum(x["matches"]))
-        text_pointers = [p["val"] - best["offset"] for p in text_pointers]
-
-
-    # for t in text_pointers:
-
-
-    print(text_pointers)
-    print(sum(best["matches"]))
 
 
 
@@ -202,40 +206,44 @@ def parse_shift_table(filename):
                 table.writelines(left + "=" + right + "\n")
 
 
-def create_atlas(bin_path, dialog_path, trans_path):
-    """Create Atlas file for referencing dialog translations in ROM"""
-    f_ptr = os.open(os.path.join(path, bin_path), os.O_RDWR)
-    mm = mmap.mmap(f_ptr, 0, prot=mmap.PROT_READ)
-    write_ptr = 0x29D3E3BE
+# def create_atlas(bin_path, dialog_path, trans_path):
+    # """Create Atlas file for referencing dialog translations in ROM"""
+    # f_ptr = os.open(os.path.join(path, bin_path), os.O_RDWR)
+    # mm = mmap.mmap(f_ptr, 0, prot=mmap.PROT_READ)
+    # write_ptr = 0x29D3E3BE
 
-    dialog_table = json.load(open(os.path.join(path, dialog_path), "r"))
-    translation_table = json.load(open(os.path.join(path, trans_path), "r"))
+    # dialog_table = json.load(open(os.path.join(path, dialog_path), "r"))
+    # translation_table = json.load(open(os.path.join(path, trans_path), "r"))
 
-    with open(os.path.join(path, "patch/Atlas.txt"), "w") as atlas_file:
-        atlas_file.write(config.ATLAS_HEADER)
+    # with open(os.path.join(path, "patch/Atlas.txt"), "w") as atlas_file:
+        # atlas_file.write(config.ATLAS_HEADER)
 
-        for item in tqdm.tqdm(dialog_table):
-            seq = dialog_table[item]["seq"]
-            addr = dialog_table[item]["addr"]
-            seq_size = sys.getsizeof(seq)
+        # for item in tqdm.tqdm(dialog_table):
+            # seq = dialog_table[item]["seq"]
+            # addr = dialog_table[item]["addr"]
+            # seq_size = sys.getsizeof(seq)
 
-            # mm.seek(write_ptr)
-            # mm.write(utils.encode_english("asdf"))
-            write_ptr += seq_size
+            # # mm.seek(write_ptr)
+            # # mm.write(utils.encode_english("asdf"))
+            # write_ptr += seq_size
 
-            print(addr[2:])
-            print(hex(write_ptr)[2:])
-            line_buf = f"#JMP(${addr[2:]}) // Jump to insertion point\n"
-            line_buf += f"#WRITE(ptr, ${hex(write_ptr)[2:]})\n"
-            # line_buf += f"{seq}\n\n"
-            line_buf += "ｗｈａｔ　ｓｈｏｕｌｄ[end]\n\n"
-            atlas_file.writelines(line_buf)
+            # print(addr[2:])
+            # print(hex(write_ptr)[2:])
+            # line_buf = f"#JMP(${addr[2:]}) // Jump to insertion point\n"
+            # line_buf += f"#WRITE(ptr, ${hex(write_ptr)[2:]})\n"
+            # # line_buf += f"{seq}\n\n"
+            # line_buf += "ｗｈａｔ　ｓｈｏｕｌｄ[end]\n\n"
+            # atlas_file.writelines(line_buf)
 
-tbl = "095935020000080000000800000000000000000000000000000000000000000000000000eb0000000001001000000000000000000000000000000000000000000000000000000000000000000000000000000000010100001c01001100000000000000000000000000000000000000000000000000000000000000000000000000000000e8d4198000d5198018d5198030d5198048d5198060d5198078d5198090d51980a8d51980c0d51980d8d51980f0d5198008d6198020d6198038d6198050d6198068d6198080d6198098d61980b0d61980c8d61980e0d61980f8d6198010d7198028d7198040d7198058d7198070d7198088d71980a0d71980b8d71980d0d71980e8d7198000d8198018d8198030d8198048d8198060d8198078d819807cd8198080d81980acd81980bcd81980c4d81980e4d81980ecd819800cd9198082d3815b82c181422082e282c182c68b7882dd8e9e8ad482a98163814200000034d91980b4ee198082cd814182cd82a281422082a082cc81418c4e82cd816381480000005cd9198082a082c181418e84814196ec8b85959482c520837d836c815b83578383815b82f082e282c182c482a282e92093f896ec8db98af382c882f182be82af82c781420000000082c5814189b482c989bd82cc977081638148000082a082c882bd82c982cd81418daa90ab82aa82a082e982ed8142208e8482c688ea8f8f82c981418d628e71898082f02096da8e7782b582dc82b582e582a48149000000007cd91980c0d91980d4d9198088ab82a282af82c7814196ec8b8582c982cd2082a082dc82e88bbb96a182c882a282f182be81420024da198082bb82a4816381422082a082c882bd82aa978882c482ad82ea82ea82ce81412082a982c882e882cc90ed97cd82c981638142000082b282df82f182cb814182c582e082bf82e582c182c620948382a282a982d482e882b782ac82be82e681420082bb82f182c882b182c682c882a281492082c582e0816381412096b3979d8bad82a282cd82c582ab82c882a282ed82cb814200008b4382aa8cfc82a282bd82e7814188ea93788ca982c9208d7382b182a482a982c881480082a482f1814191d282c182c482e982ed81492082bb82ea82b682e1814200000050da198084da1980b0da1980e4da198008db198082a882a281418da182cc93f896ec8db98af382be82eb81480000000082a082a0814182bb82a482dd82bd82a282be82cb81420000895e93ae959482cc834183438368838b82aa81412082a8914f82c882f182a982c92089bd82cc977082be82c182bd82f182be81420000000082c882f182a981412095948a8882cc8aa9975582dd82bd82a281420082d3815b82f181422082a081418ef68bc68e6e82dc82c182bd8142003cdb198058db198070db1980a8db1980c4db198082a082c181418e84814183548362834a815b959482c520837d836c815b83578383815b82f082e282c182c482a282e92093f896ec8db98af382c882f182be82af82c781420000000082c5814189b482c989bd82cc97708163814881420000000082a082c882bd82c982cd81418daa90ab82aa82a082e982ed8142208e8482c688ea8f8f82c981418d9197a78ba38b5a8fea82f02096da8e7782b582dc82b582e582a4814900000000f4db19803cdc198054dc198088ab82a282af82c7814183548362834a815b82c982cd2082a082dc82e88bbb96a182c882a282f182be814200a8dc198089b4814196ec8b85959482c882f182be82af82c7816381420000000082a682c1816381420000000082a082f182dc82e88141208f6f82c482c882a282af82c782cb81420097fb8f4b82b582c882ab82e181418d628e71898082c9208d7382af82c882a282b682e182c882a2814200000082bb82e882e182bb82a482be814200008da1937882a982e78141905e96ca96da82c92097fb8f4b82c9978882c882b382a282e68142000000d8dc1980f4dc198000dd19801cdd198048dd198058dd198096ec8b85959482c981412082a082f182c896ba82a282bd82f182be816381420098dd198089b4814183548362834a815b95942082c882f182be82af82c78163814200000082a682c1816381420000000082a082f182dc82e88141208f6f82c482c882a282af82c782cb81420097fb8f4b82b582c882ab82e181418d9197a78ba38b5a8fea82c9208d7382af82c882a282b682e182c882a2814200000082bb82e882e182bb82a482be814200008da1937882a982e78141905e96ca96da82c92097fb8f4b82c9978882c882b382a282e68142000000bcdd1980dcdd1980e8dd198004de198034de198044de198083548362834a815b959482c981412082a082f182c896ba82a282bd82f182be816381420084de1980927882ad82c882c182bf82e182c182bd82e6814220816982f18148208ca982a982af82c882a296ba82aa82a282e982c88142816a00000000acde198082a082c1814196ec8b85959482cc95fb82c582b782a981480000000082bb82a482be82af82c78163814200008da193fa82a982e7837d836c815b83578383815b82c682b582c42093fc959482b582bd814193f896ec8db98af382c582b781422082e682eb82b582ad82a88ae882a282b582dc82b78142000082a0814189b481414681422082b182bf82e782b182bb82e682eb82b582ad81420000000082bb82ea82b682e181638142208d628e71898096da8e7782b582c481412097fb8f4b8ae692a382c182c482cb81420000e8de198004df198014df198060df198084df198082d682a5814182a082f182c896ba82aa20837d836c815b83578383815b82c982c882c182bd82f182be81422097fb8f4b82c98b438d8782aa2cd681416f3258220c4ae9a864e1d42af25125fcd0bb9ad5e5c284e2f681bf395543b7aaeae9eddb7571542cea152f88b2ee7bc684f7bd3896d68dedd034fe8776380fd5a8f932207bd64737814ee85e8d37767daf1e9bdb70ad12d269d95d75ce2037b48a85dda524151d6d920027e3c70df3f12bc441e10b51f4ff54a909de8c0cdc6719bf46b41511ab188afe84e1a7d17288519c8f98dfeebc913e9fa5f9d30e515512c3aaabadc3b2e20e53d2816535fbf3b4b7ae48525c977a7a54c1a80660aee3e1b6114f47f41da2576dc8a999b2568b96fd0c888a20e9cba47fc8fa5e30631960b689faef818b2825bf940eceeb49b4696ff38cf746ac13f5faabf4f1fd1fa3ae113e9a9b867c8c7288e18ec05eb24218e4449200"
+tbl="09593302000008000000080082C18149204782C182C48141208CC38EAE82E482A982E882B382F1814800000082BB82A4814182C582B782AF82EA82C782E081638142209053939682BD82E882CD81412082B282B482A282DC82B782A98148000082CD82A0816381482082C882F182C582B582E582A481480089B482AA81414782CC8370815B83678369815B81422096BC914F82CD814146814200000082BB82EA82CD81418EB897E782F082A282BD82B582DC82B582BD81422082BB82EA82C582CD81418DA193FA82CD2082E682EB82B582AD82A88AE882A282A282BD82B582DC82B781420000000082B182BF82E782B182BB81420000000024C7198040C7198098C71980ACC71980FCC7198020C81980ACEE198054C819806CC8198090C81980DCC8198034C5198040C5198054C5198078C61980D0C619801CC71980ECC81980060100FF07FF000001FF00000001000100010001FF00000000FF00000001FF000001000100010001000100FF34C9198038C919803CC9198040C919804CC9198050C9198054C919800000000000000000000000000000000000000000000000000000000009000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000A0000000E000002000000000000000000000000000000000000000000000000000000000000000000000000000000000F0000001D000003000000000000000000000000000000000000000000000000000000000000000000000000000000001E0000003000000400000000000000000000000000000000000000000000000000000000000000000000000000000000310000004700000500000000000000000000000000000000000000000000000000000000000000000000000000000000480000005F0000060000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001030000010000000000000000000000000000000000000000000000000000000000000000000000000000000060000000810000070000000000000000000000000000000000000000000000000000000000000000000000000000000082000000A500000800000000000000000000000000000000000000000000000000000000000000000000000000000000A6000000BB00000900000000000000000000000000000000000000000000000000000000000000000000000000000000BC000000C500000A00000000000000000000000000000000000000000000000000000000000000000000000000000000C6000000E000000B000000000000000000000000000000000000000000000000000000000000000000000000000000007CC9198094C91980ACC91980C4C91980DCC91980F4C919800CCA198024CA19803CCA198054CA19806CCA198084CA19809CCA1980B4CA1980CCCA1980E4CA1980FCCA198014CB19802CCB198044CB19805CCB198074CB19808CCB1980A4CB1980BCCB1980D4CB1980ECCB198004CC198010CC198014CC198018CC198038CC19803CCC198044CC198082D3815B82C1814194E682EA82BD814220816992A9918182AD919682E982CC82CD8141208B438E9D82BF82AA82A282A282C882A08142816A000000008CCC198082A882CD82E682A481420000CCCC1980816381492082A8814182A882CD82E682A4814220816993E982EA93E982EA82B582A2937A82BE82C882A08142816A00008C4E82E08DA18141919682C182C482AB82BD82CC8148000082A082A0814182BB82A482BE82E68142208C4E82E082BB82A482C882CC8148008E848141968892A98254824F834C838D82CC20838D815B8368838F815B834E82F0208C8782A982B582BD82B182C682C882A282A982E781420000000082DC8141968892A981418254824F834C838D8149208C4E8163814182AB82E782DF82AB8D828D5A82CC906C814800000082A482F1814182BB82A48142208E84814190B490EC965D8142208C4E82E082BB82A482C882CC81480000000082BB82A4814189B481414681422090B490EC82C182C4816381422082A082CC81419085896A959482CC90B490EC82B382F181480082BB82A482BE82AF82C7816381422082D682A581638142208E8482CC8E968141926D82C182C482E982F182BE81420000926D82C182C482E982E089BD82E081412092B4974C96BC906C82B682E182C882A282A9814200000092B48D828D5A8B8982CC8F9783588343837D815B82BE82E681422082E082C182C6814196B38D9C82C896BA82BE82C6208E7682C182C482BD82AF82C7816381420000000092B4974C96BC82CB816381422082BB82EA82E682E882E082B38141208DA19378814188EA8F8F82C9919682EB82A482E681420000DCCC19800CCD198024CD198044CD198080CD1980B0CD1980DCCD198010CE198040CE198068CE1980ACCE198082CD82CD82CD816381422090B490EC82B382F182CC91AB8EE882DC82C682A282C92082C882E782C882AB82E182A282A282AF82C782CB81420000000082CD82CD82CD82CD814182C882E782C882A282C182C481422082B682E182A08E84814182E082A482D082C682C1919682E82082B582C482AD82E982A982E781420000000089B482CD814182E082A48FAD82B58B7882F182C582A282AD82E681420000000082B182CC83578385815B8358814120975D82C182BD82A982E782A082B082E981422082B682E182A0814200000CCF198048CF19808CCF1980ACCF1980816381422082F182AE82F182AE82F182AE816381422083760CCED378A2276E0404A31C9AFF40BD7D393B60736DCD99E33271BB7D7149BABE657C8C2C78C2D134BDCD1B175D5EC0A738B2196244ADF34333957CDDDAE4A5C2ED473348FF007A3C1835C46759D0BE37DFDF9EFBAB0977AA0A476B537BA1327A01C2FE7F270BEDCDC6FE57F12784C139FAC4DF37C0B42C564C0942DB8FFFF30939C73026858C7D5B6F58DD0F4E01E25A5A0F3F5E535BE2EA671AA09FD4264C47731A4084B0AE938354C1ADD243AA6BA07BCBDC0EC2BA488283AA1F344E2F4076F2832F6328694BED3F73843C12CC58F8BF166A08FFC8489AB7B5E1C17D82642C9FEB42581DA5934DD55372C9BB2ED82828F246FE9295CC5A2EEDE6535B0B46D4D91AAE80BD275E3E113F056706BCE980103FC57C7AAE6FDC00"
 
 if __name__=="__main__":
     # get_ptr_tables(os.path.join(path, "patch/Atlas.bin"))
-    get_table_pointers(tbl)
+    b = Block(tbl, 0x648198C)
+    b.get_table_pointers()
+    b.get_seqs()
+    b.create_ptr_table()
+
     # shiftjis_table = create_shiftjis_table(os.path.join(path, "patch/shiftjis_table.txt"))
 
     # with open("test_table.txt", "r") as test_table_fp:

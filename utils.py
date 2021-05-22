@@ -112,7 +112,7 @@ def decode_seq(seq: bytes) -> str:
 if __name__=="__main__":
     # text = input()
 
-    text = "82 D3 81 5B 82 C1 81 41 94 E6 82 EA 82 BD 81 42 20 81 69 92 A9 91 81 82 AD 91 96 82 E9 82 CC 82 CD 81 41 20 8B 43 8E 9D 82 BF 82 AA 82 A2 82 A2 82 C8 82 A0 81 42 81 6A"
+    # text = "82 D3 81 5B 82 C1 81 41 94 E6 82 EA 82 BD 81 42 20 81 69 92 A9 91 81 82 AD 91 96 82 E9 82 CC 82 CD 81 41 20 8B 43 8E 9D 82 BF 82 AA 82 A2 82 A2 82 C8 82 A0 81 42 81 6A"
 
     # print(encode_english(text))
     for seq in text.split(" 0 "):
@@ -124,7 +124,8 @@ if __name__=="__main__":
         # print(seq)
 
         seq = translator.translate(seq, lang_tgt="en")
-        # print(seq)
+        print(seq)
+    # seq = "Hey whats up my name is matthewI like shit I love you tim"
 
         fp = open("pointer_table.json", "w")
         seq = encode_english(seq)
