@@ -17,6 +17,13 @@ path = os.path.dirname(__file__)
 translator = google_translator()
 
 
+def read_ptr(ptr):
+    """Read ps1 pointer from file"""
+    ptr = reversed([ptr[i:i + 2] for i in range(0, len(ptr), 2)])
+    ptr = "".join(list(ptr))
+
+    return ptr
+
 
 def handle_dup(seq):
     """Takes string sequence and checks for duplicates"""
