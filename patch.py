@@ -14,6 +14,7 @@ import mmap
 
 from halo import Halo
 
+import numpy as np
 import pandas as pd
 
 import utils
@@ -37,6 +38,13 @@ class Block:
         self.address = address
         self.block_num = block_num
 
+        if len(table) != config.BLOCK_SIZE:
+            print("Incorrect block table length", len(table))
+            print("Block table length should be", config.BLOCK_SIZE)
+
+        # Graph
+        self.connected = []
+
         # Initialize class vars
         self.seqs = []
         self.pointers = []
@@ -46,10 +54,13 @@ class Block:
         self.get_table_pointers()
         if len(self.pointers) > 40:
             self.get_seqs()
+            self.get_offset()
 
-        if len(self.seqs):
-            self.create_ptr_table()
-            self.is_empty = False
+        # if len(self.seqs):
+            # self.create_ptr_table()
+            # self.is_empty = False
+
+        self.pointers = pd.DataFrame(self.pointers)
 
 
 
@@ -58,7 +69,6 @@ class Block:
         out += "Block Addr: " + hex(self.address) + "------------------"
 
         return out
-
 
 
     def get_table_pointers(self):
@@ -94,6 +104,8 @@ class Block:
             except:
                 pass
 
+
+    def get_offset(self):
         # Get sentence indices and sort 
         self.seqs = [(self.table.index(s), s) for s in self.seqs]
         self.seqs = pd.DataFrame(self.seqs, columns = ["idx", "seqs"])
@@ -101,28 +113,24 @@ class Block:
 
         # Get pointers and sort by relative pointer pos in table
         self.pointers = sorted(self.pointers, key=lambda x: x["idx"])
+        self.pointers = pd.DataFrame(self.pointers)
 
 
         # Find best offset to match max amount of pointers to sequences 
-        best = []
-        for ptr in self.pointers:
-            offset = 0
-            if not self.seqs.empty:
-                offset = ptr["idx"] - self.seqs["idx"][0]
+        ptr_idxs = np.array(self.pointers["idx"])
+        seq_idxs = np.array(self.seqs["idx"])
 
-            ptrs = [p["idx"] - offset for p in self.pointers]
-            matches = [p in self.seqs["idx"] for p in ptrs]
+        self.offsets = []
+        for p in ptr_idxs:
+            offset = p - seq_idxs[0]
 
-            best.append({"offset":offset, "matches":matches})
+            offset_idxs = ptr_idxs - offset
+            matches = np.intersect1d(offset_idxs, seq_idxs)
 
-        if len(best) > 2:
-            best = max(best, key = lambda x: sum(x["matches"]))
-            for i in range(len(self.pointers)):
-                self.pointers[i]["idx"] -= int(best["offset"]) # Apply offset to pointers
+            self.offsets.append((offset, len(matches)))
 
 
     def create_ptr_table(self):
-        #TODO refactor
         for i, p in enumerate(self.pointers):
             p["addr"] = hex(self.address + p["idx"]) # Address in ROM that pointer points to given offset
 
@@ -136,7 +144,12 @@ class Block:
 
                 self.pointers[i] = p
 
-        self.pointers = pd.DataFrame(self.pointers)
+
+    def match_block(self, block):
+        """Checks all possible offsets with another block"""
+        # print(self.pointers.count())
+        # print(self.pointers.count())
+        # print()
 
 
 def init_blocks():
@@ -185,11 +198,7 @@ def init_blocks():
 def solve_blocks(blocks):
     for b1 in blocks:
         for b2 in blocks:
-            print(blocks[b1])
-            print(blocks[b2])
-            print()
-            # print(blocks[b1].pointers)
-            # print(blocks[b2].pointers)
+            blocks[b1].match_block(blocks[b2])
 
 
 if __name__=="__main__":
@@ -200,12 +209,17 @@ if __name__=="__main__":
 
     blocks = {}
     chunk = chunk.split("00FFFFFFFFFFFFFFFFFFFF00")
+    chunk = [x.replace("\n", "")[:config.BLOCK_SIZE] for x in chunk if x]
 
     for index, tbl in enumerate(chunk):
         tid = tbl[:8]
         b = Block(tid, tbl, index * 4096, 1)
 
         blocks[index] = b
+
+
+        if index > 2:
+            break
 
     solve_blocks(blocks)
 
