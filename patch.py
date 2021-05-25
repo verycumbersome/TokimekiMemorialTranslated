@@ -24,11 +24,9 @@ path = os.path.dirname(__file__)
 
 spinner = Halo(text='Creating blocks', spinner='dots')
 
-
 # Define globals
 f_ptr = os.open(os.path.join(path, config.BIN_PATH), os.O_RDWR)
 mm = mmap.mmap(f_ptr, 0, prot=mmap.PROT_READ)
-
 
 
 class Block:
@@ -39,28 +37,26 @@ class Block:
         self.block_num = block_num
 
         # Make sure the block size is correct
-        assert len(table) % config.BLOCK_SIZE == 0, "Incorrect block table length"
-        # if len(table) % config.BLOCK_SIZE != 0:
-            # print("Incorrect block table length", len(table))
-            # print("Block table length should be a multiple of ", config.BLOCK_SIZE)
+        # assert len(table) % config.BLOCK_SIZE == 0, "Incorrect block table length"
 
         # Initialize class vars
         self.seqs = []
-        self.offsets = []
         self.pointers = []
         self.is_empty = True
 
         # Call init functions
         self.get_table_pointers()
 
+        self.pointers = pd.DataFrame(self.pointers)
+
         if len(self.pointers) > 10:
             self.get_seqs()
             self.get_offset()
-            self.is_empty = False
 
         if len(self.seqs):
             self.create_ptr_table()
             self.is_empty = False
+
 
     def __str__(self):
         out = "Block ID:" + self.tid + "----------------\n"
@@ -84,13 +80,14 @@ class Block:
             ptr = int(ptr[2:], 16)  # Convert pointer to int
             ptr_text = tbl[ptr_idx - 6:ptr_idx + 2]
 
-            if ptr > 0x100000: # Make sure pointer location is sufficiently large
-                self.pointers.append({
-                    "hex":hex(ptr),
-                    "text":ptr_text,
-                    "idx":ptr
-                })
+            # if ptr > 0x100000: # Make sure pointer location is sufficiently large
+            self.pointers.append({
+                "hex":hex(ptr),
+                "text":ptr_text,
+                "idx":ptr
+            })
             tbl = tbl[:ptr_idx - 6]
+
 
 
     def get_seqs(self):
@@ -111,25 +108,24 @@ class Block:
         self.seqs = self.seqs.sort_values("idx")
 
         # Get pointers and sort by relative pointer pos in table
-        self.pointers = sorted(self.pointers, key=lambda x: x["idx"])
-        self.pointers = pd.DataFrame(self.pointers)
-
+        self.pointers = self.pointers.sort_values("idx").reset_index()
 
         # Find best offset to match max amount of pointers to sequences 
-        ptr_idxs = np.array(self.pointers["idx"])
-        seq_idxs = np.array(self.seqs["idx"])
+        ptr_idxs = self.pointers["idx"]
+        seq_idxs = self.seqs["idx"]
 
         if ptr_idxs.size == 0 or seq_idxs.size == 0:
             return
 
+        offsets = []
         for p in ptr_idxs:
             offset = p - seq_idxs[0]
             offset_idxs = ptr_idxs - offset
             matches = np.intersect1d(offset_idxs, seq_idxs)
 
-            self.offsets.append((offset, len(matches)))
+            offsets.append((offset, len(matches)))
 
-        self.best = max(self.offsets, key = lambda i : i[1])
+        self.best = max(offsets, key = lambda i : i[1])
 
 
     def create_ptr_table(self):
@@ -140,18 +136,10 @@ class Block:
         # Merge matching pointers and seqs given best offset
         self.pointers = pd.merge(self.pointers, self.seqs, on="idx")
 
+        # print(self.pointers)
+
 
 def init_blocks():
-    """ Get all pointers from a 'block' in ROM
-
-    Args:
-        bin_path: Path for game bin file
-
-    Returns:
-        Returns dict of pointer tables with associated data
-
-    """
-
     x = "82 E0 8D A1 81 41 91 96 82 C1 82 C4 82 AB 82 BD 82 CC 81 48 00 00 82 A0 82 A0 81 41 82 BB 82 A4 82 BE 82 E6 81 42 20 8C 4E 82 E0 82 BB 82 A4 82 C8 82 CC 81 48 00 8E 84 81 41 96 88 92 A9 82 54 82 4F 83 4C 83 8D 82 CC 20 83 8D 81 5B 83 68 83 8F 81 5B 83 4E 82 F0 20 8C 87 82 A9 82 B5 82 BD 82 B1 82 C6 82 C8 82 A2 82 A9 82 E7 81 42 00 00 00 00 82 DC 81 41 96 88 92 A9 81 41 82 54 82 4F 83 4C 83 8D 81 49 20 8C 4E 81 63 81 41 82 AB 82 E7 82 DF 82 AB 8D 82 8D 5A 82 CC 90 6C 81 48 00 00 00 82 A4 82 F1 81 41 82 BB 82 A4 81 42 20 8E 84 81 41 90 B4 90 EC 96 5D 81 42 20 8C 4E 82 E0 82 BB 82 A4 82 C8 82 CC 81 48".replace(" ", "").lower()
 
     chunk = ""
@@ -169,23 +157,26 @@ def init_blocks():
 
         table = mm[table_idx:end].hex()
 
-
         tid = table[24:32] # Get id
         table = table[48:len(table) - 560] # Remove table header/footer info 
 
-        tmp = Block(tid, table, table_idx + 48, len(blocks))
+        chunk = table + " [SEP] " + chunk
 
-        chunk = table + chunk
+        b = Block(tid, chunk, table_idx + 48, len(blocks))
 
-        if tmp.is_empty:
-            b = Block(tid, chunk, table_idx + 48, len(blocks))
+
+        if b.pointers.empty:
+            end = table_idx
+            continue
+
+        if x in chunk:
+            print(chunk)
+
+        if len(np.unique(b.pointers["hex"])) != len(b.pointers["hex"]):
             blocks.append(b)
-
-            if x in chunk:
-                print(b.pointers)
+            print(b.pointers)
 
             chunk = ""
-
 
         end = table_idx
 
