@@ -38,12 +38,11 @@ class Block:
         self.address = address
         self.block_num = block_num
 
-        # if len(table) != config.BLOCK_SIZE:
+        # Make sure the block size is correct
+        assert len(table) % config.BLOCK_SIZE == 0, "Incorrect block table length"
+        # if len(table) % config.BLOCK_SIZE != 0:
             # print("Incorrect block table length", len(table))
-            # print("Block table length should be", config.BLOCK_SIZE)
-
-        # Graph
-        self.next = None
+            # print("Block table length should be a multiple of ", config.BLOCK_SIZE)
 
         # Initialize class vars
         self.seqs = []
@@ -54,7 +53,7 @@ class Block:
         # Call init functions
         self.get_table_pointers()
 
-        if len(self.pointers) > 40:
+        if len(self.pointers) > 10:
             self.get_seqs()
             self.get_offset()
             self.is_empty = False
@@ -62,9 +61,6 @@ class Block:
         if len(self.seqs):
             self.create_ptr_table()
             self.is_empty = False
-
-        self.pointers = pd.DataFrame(self.pointers)
-
 
     def __str__(self):
         out = "Block ID:" + self.tid + "----------------\n"
@@ -138,13 +134,11 @@ class Block:
 
     def create_ptr_table(self):
         self.pointers["idx"] -= self.best[0]
-
         self.pointers["addr"] = list(map(hex, self.pointers["idx"] + self.address))
         self.pointers["addr"] = np.array(self.pointers["addr"])
 
-        x = pd.merge(self.pointers, self.seqs, on="idx")
-        print(x)
-        # self.pointers["seq"] = self.seqs
+        # Merge matching pointers and seqs given best offset
+        self.pointers = pd.merge(self.pointers, self.seqs, on="idx")
 
 
 def init_blocks():
@@ -157,6 +151,8 @@ def init_blocks():
         Returns dict of pointer tables with associated data
 
     """
+
+    x = "82 E0 8D A1 81 41 91 96 82 C1 82 C4 82 AB 82 BD 82 CC 81 48 00 00 82 A0 82 A0 81 41 82 BB 82 A4 82 BE 82 E6 81 42 20 8C 4E 82 E0 82 BB 82 A4 82 C8 82 CC 81 48 00 8E 84 81 41 96 88 92 A9 82 54 82 4F 83 4C 83 8D 82 CC 20 83 8D 81 5B 83 68 83 8F 81 5B 83 4E 82 F0 20 8C 87 82 A9 82 B5 82 BD 82 B1 82 C6 82 C8 82 A2 82 A9 82 E7 81 42 00 00 00 00 82 DC 81 41 96 88 92 A9 81 41 82 54 82 4F 83 4C 83 8D 81 49 20 8C 4E 81 63 81 41 82 AB 82 E7 82 DF 82 AB 8D 82 8D 5A 82 CC 90 6C 81 48 00 00 00 82 A4 82 F1 81 41 82 BB 82 A4 81 42 20 8E 84 81 41 90 B4 90 EC 96 5D 81 42 20 8C 4E 82 E0 82 BB 82 A4 82 C8 82 CC 81 48".replace(" ", "").lower()
 
     chunk = ""
 
@@ -173,17 +169,23 @@ def init_blocks():
 
         table = mm[table_idx:end].hex()
 
+
         tid = table[24:32] # Get id
         table = table[48:len(table) - 560] # Remove table header/footer info 
 
         tmp = Block(tid, table, table_idx + 48, len(blocks))
 
-        chunk += table
+        chunk = table + chunk
 
         if tmp.is_empty:
             b = Block(tid, chunk, table_idx + 48, len(blocks))
             blocks.append(b)
+
+            if x in chunk:
+                print(b.pointers)
+
             chunk = ""
+
 
         end = table_idx
 
