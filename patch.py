@@ -43,7 +43,7 @@ class Block:
             # print("Block table length should be", config.BLOCK_SIZE)
 
         # Graph
-        self.connected = []
+        self.next = None
 
         # Initialize class vars
         self.seqs = []
@@ -59,9 +59,9 @@ class Block:
             self.get_offset()
             self.is_empty = False
 
-        # if len(self.seqs):
-            # self.create_ptr_table()
-            # self.is_empty = False
+        if len(self.seqs):
+            self.create_ptr_table()
+            self.is_empty = False
 
         self.pointers = pd.DataFrame(self.pointers)
 
@@ -86,11 +86,12 @@ class Block:
             ptr_idx = tbl.rfind("80")
             ptr = utils.read_ptr(tbl[ptr_idx - 6:ptr_idx + 2])
             ptr = int(ptr[2:], 16)  # Convert pointer to int
+            ptr_text = tbl[ptr_idx - 6:ptr_idx + 2]
 
             if ptr > 0x100000: # Make sure pointer location is sufficiently large
                 self.pointers.append({
                     "hex":hex(ptr),
-                    "text":tbl[ptr_idx - 6:ptr_idx + 2],
+                    "text":ptr_text,
                     "idx":ptr
                 })
             tbl = tbl[:ptr_idx - 6]
@@ -127,7 +128,6 @@ class Block:
 
         for p in ptr_idxs:
             offset = p - seq_idxs[0]
-
             offset_idxs = ptr_idxs - offset
             matches = np.intersect1d(offset_idxs, seq_idxs)
 
@@ -136,60 +136,15 @@ class Block:
         self.best = max(self.offsets, key = lambda i : i[1])
 
 
-    # def create_ptr_table(self):
-        # for i, p in enumerate(self.pointers):
-            # p["addr"] = hex(self.address + p["idx"]) # Address in ROM that pointer points to given offset
+    def create_ptr_table(self):
+        self.pointers["idx"] -= self.best[0]
 
-            # if p["idx"] >= 0 and p["idx"] < len(self.table):
-                # for s in self.seqs.itertuples():
-                    # s = tuple(s)
-                    # if s[1] == p["idx"]:
-                        # p["offset"] = s[1] + self.address
-                        # p["seq"] = s[2]
-                        # p["decoded"] = bytes.fromhex(s[2]).decode("shift-jis", "ignore")
+        self.pointers["addr"] = list(map(hex, self.pointers["idx"] + self.address))
+        self.pointers["addr"] = np.array(self.pointers["addr"])
 
-                # self.pointers[i] = p
-
-
-    def match_block(self, block):
-        """Checks all possible block offsets with another block's offsets"""
-
-        # print(self)
-        # print(block)
-
-        best = 0
-        connect_blocks = False
-        for offset in block.offsets + self.offsets:
-            # b1_matches = self.pointers["idx"] - offset
-            # b1_matches = np.intersect1d(self.seqs["idx"], b1_matches)
-
-            # b2_matches = block.pointers["idx"] - offset
-            # b2_matches = np.intersect1d(block.seqs["idx"] + d, b2_matches)
-
-            pointers = np.append(self.pointers["idx"], block.pointers["idx"]) - offset[0]
-            seqs = np.append(self.seqs["idx"], block.seqs["idx"] + config.BLOCK_SIZE)
-
-            # matches = len(np.intersect1d(self.seqs["idx"], pointers))
-
-            matches = len(np.intersect1d(seqs, pointers))
-            matches -= self.best[1]
-
-            if matches > 0:
-                connect_blocks = True
-
-            if matches > best:
-                best = matches
-
-                # print(offset)
-                # print("Block1 matches: ", len(b1_matches))
-                # print("Block2 matches: ", len(b2_matches))
-                # print()
-
-        if connect_blocks:
-            self.connected.append(block)
-            block.connected.append(self)
-
-        return best
+        x = pd.merge(self.pointers, self.seqs, on="idx")
+        print(x)
+        # self.pointers["seq"] = self.seqs
 
 
 def init_blocks():
@@ -203,16 +158,17 @@ def init_blocks():
 
     """
 
-    # blocks = {}
+    chunk = ""
+
     blocks = []
     end = config.MEM_MAX
 
-    spinner.start()
+    # spinner.start()
     while True:
         table_idx = mm.rfind(config.TABLE_SEP, config.MEM_MIN, end)
 
         if table_idx < 1: # Stop parsing at end of bin file
-            spinner.stop()
+            # spinner.stop()
             break
 
         table = mm[table_idx:end].hex()
@@ -220,13 +176,16 @@ def init_blocks():
         tid = table[24:32] # Get id
         table = table[48:len(table) - 560] # Remove table header/footer info 
 
-        b = Block(tid, table, table_idx + 48, len(blocks))
+        tmp = Block(tid, table, table_idx + 48, len(blocks))
 
-        if not b.is_empty:
+        chunk += table
+
+        if tmp.is_empty:
+            b = Block(tid, chunk, table_idx + 48, len(blocks))
             blocks.append(b)
+            chunk = ""
 
         end = table_idx
-
 
     return blocks
 
@@ -234,29 +193,34 @@ def init_blocks():
 def solve_blocks(blocks):
     graph = []
 
+    # for b in blocks:
+        # print(b.pointers)
+
     # for b1 in tqdm(range(len(blocks)), desc="solving blocks"):
-    for b1 in range(len(blocks)):
-        best = 0
-        best_match = None
+    # for b1 in range(len(blocks)):
+        # best = 0
+        # best_match = None
 
-        # for b2 in tqdm(range(b1 + 1, len(blocks)), desc="block", leave = False):
-        for b2 in range(b1 + 1, len(blocks)):
-            match = blocks[b1].match_block(blocks[b2])
+        # # for b2 in tqdm(range(b1 + 1, len(blocks)), desc="block", leave = False):
+        # for b2 in range(b1 + 1, len(blocks)):
+            # match = blocks[b1].match_block(blocks[b2])
 
-            if match > best:
-                best = match
-                best_match = (b1, b2)
+            # if match > best:
+                # best = match
+                # best_match = (b1, b2)
 
-        graph.append(best_match)
+        # graph.append(best_match)
 
-    print(graph)
+    # print(graph)
 
-    for b in blocks:
-        print(len(b.connected))
+    # for b in blocks:
+        # print(b)
+        # print(b.next)
+        # print()
 
 
 if __name__=="__main__":
-    blocks = init_blocks()[:10]
+    blocks = init_blocks()[:20]
 
     # with open("test_table.txt", "r") as test_table_fp:
         # chunk = test_table_fp.read()
@@ -276,7 +240,3 @@ if __name__=="__main__":
             # break
 
     solve_blocks(blocks)
-
-
-
-
