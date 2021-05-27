@@ -30,8 +30,7 @@ mm = mmap.mmap(f_ptr, 0, prot=mmap.PROT_READ)
 
 
 class Block:
-    def __init__(self, tid, table, address, block_num):
-        self.tid = tid
+    def __init__(self, table, address, block_num):
         self.table = table
         self.address = address
         self.block_num = block_num
@@ -41,6 +40,7 @@ class Block:
 
         # Initialize class vars
         self.seqs = []
+        self.offsets = []
         self.pointers = []
         self.is_empty = True
 
@@ -53,9 +53,12 @@ class Block:
             self.get_seqs()
             self.get_offset()
 
+            self.validity = len(self.pointers) / (len(self.offsets) + 0.0001)
+
         if len(self.seqs):
             self.create_ptr_table()
             self.is_empty = False
+
 
 
     def __str__(self):
@@ -88,6 +91,9 @@ class Block:
             })
             tbl = tbl[:ptr_idx - 6]
 
+        # Replace all pointers in the table with NULL
+        for p in self.pointers:
+            self.table = self.table.replace(p["text"], "00000000")
 
 
     def get_seqs(self):
@@ -126,6 +132,8 @@ class Block:
             offsets.append((offset, len(matches)))
 
         self.best = max(offsets, key = lambda i : i[1])
+        self.offsets = [x for x in offsets if x[1] == self.best[1]]
+
 
 
     def create_ptr_table(self):
@@ -156,24 +164,27 @@ def init_blocks():
             break
 
         table = mm[table_idx:end].hex()
-
-        tid = table[24:32] # Get id
         table = table[48:len(table) - 560] # Remove table header/footer info 
 
         chunk = table + chunk
 
-        b = Block(tid, chunk, table_idx + 24, len(blocks))
+        b = Block(chunk, table_idx + 24, len(blocks))
 
         if b.pointers.empty:
             end = table_idx
             continue
 
-        if x in chunk:
-            print(chunk)
+        # if x in chunk:
+            # print(chunk)
 
-        if len(np.unique(b.pointers["hex"])) != len(b.pointers["hex"]):
+        if len(np.unique(b.pointers["hex"])) != len(b.pointers["hex"]): # If theres a duplicate pointer
+            # b = Block(chunk[config.BLOCK_SIZE:], table_idx + config.BLOCK_SIZE + 48, len(blocks))
             blocks.append(b)
-            print(b.pointers)
+
+            if not b.is_empty:
+                print(b.pointers)
+                print("Block validity", b.validity)
+                print()
 
             chunk = ""
 
