@@ -83,22 +83,26 @@ class Block:
             ptr = int(ptr[2:], 16)  # Convert pointer to int
             ptr_text = tbl[ptr_idx - 6:ptr_idx + 2]
 
-            # if ptr > 0x100000: # Make sure pointer location is sufficiently large
-            self.pointers.append({
-                "hex":hex(ptr),
-                "text":ptr_text,
-                "idx":ptr
-            })
+            self.table = self.table.replace(ptr_text, "00000000")
+
+            if ptr > 0x170000 and ptr < 0x1A0000: # Make sure pointer location is sufficiently large
+                self.pointers.append({
+                    "hex":hex(ptr),
+                    "text":ptr_text,
+                    "idx":ptr
+                })
             tbl = tbl[:ptr_idx - 6]
 
         # Replace all pointers in the table with NULL
-        for p in self.pointers:
-            self.table = self.table.replace(p["text"], "00000000")
+        # for p in self.pointers:
+            # self.table = self.table.replace(p["text"], "00000000")
 
 
     def get_seqs(self):
         # Checks to make sure that the sequence is a valid shift-jis sentence
         table = [x.lstrip("0") for x in self.table.split("00") if len(x) > 8]
+
+        # print(table)
 
         for s in table:
             s = utils.clean_seq(s)
@@ -115,7 +119,7 @@ class Block:
         self.seqs = self.seqs.sort_values("idx")
 
         # Get pointers and sort by relative pointer pos in table
-        self.pointers = self.pointers.sort_values("idx").reset_index()
+        self.pointers = self.pointers.sort_values("idx")
 
         # Find best offset to match max amount of pointers to sequences 
         ptr_idxs = self.pointers["idx"]
@@ -123,6 +127,9 @@ class Block:
 
         if ptr_idxs.size == 0 or seq_idxs.size == 0:
             return
+
+        # print(self.pointers)
+        # print(self.seqs)
 
         offsets = []
         for p in ptr_idxs:
@@ -143,6 +150,7 @@ class Block:
         self.pointers["addr"] = np.array(self.pointers["addr"])
 
         # Merge matching pointers and seqs given best offset
+        # self.pointers = pd.merge(self.pointers, self.seqs, on="idx", how="left")
         self.pointers = pd.merge(self.pointers, self.seqs, on="idx")
 
         # print(self.pointers)
@@ -181,7 +189,10 @@ def init_blocks():
         if "82a882cd82e682a48142" in chunk:
             # print([x for x in chunk.split("00") if len(x) > 10])
             # print(b.seqs)
+            # for p in b.pointers.itertuples():
+                # print(p)
             print("ASDFDASFDS")
+            print(len(b.offsets))
             exit()
 
         if len(np.unique(b.pointers["hex"])) != len(b.pointers["hex"]): # If theres a duplicate pointer
