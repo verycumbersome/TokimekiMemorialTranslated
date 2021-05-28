@@ -98,13 +98,14 @@ class Block:
 
     def get_seqs(self):
         # Checks to make sure that the sequence is a valid shift-jis sentence
-        for s in self.table.split("00"):
-            try:
-                seq = utils.decode_seq(bytes.fromhex(s))
-                if utils.check_validity(seq) > 0.7 and len(seq) > 1:
-                    self.seqs.append(s)
-            except:
-                pass
+        table = [x.lstrip("0") for x in self.table.split("00") if len(x) > 8]
+
+        for s in table:
+            s = utils.clean_seq(s)
+
+            seq = utils.decode_seq(bytes.fromhex(s))
+            if utils.check_validity(seq) > 0.7 and len(seq) > 1:
+                self.seqs.append(s)
 
 
     def get_offset(self):
@@ -176,6 +177,12 @@ def init_blocks():
 
         # if x in chunk:
             # print(chunk)
+
+        if "82a882cd82e682a48142" in chunk:
+            # print([x for x in chunk.split("00") if len(x) > 10])
+            # print(b.seqs)
+            print("ASDFDASFDS")
+            exit()
 
         if len(np.unique(b.pointers["hex"])) != len(b.pointers["hex"]): # If theres a duplicate pointer
             # b = Block(chunk[config.BLOCK_SIZE:], table_idx + config.BLOCK_SIZE + 48, len(blocks))

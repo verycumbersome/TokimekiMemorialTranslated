@@ -25,7 +25,7 @@ path = os.path.dirname(__file__)
 
 OFFSET = 0x62E5198
 
-with open(os.path.join(path, "patch/dialog_table.json")) as table_fp:
+with open(os.path.join(path, "data/dialog_table.json")) as table_fp:
     trans_table = json.load(table_fp)
 
 translator = google_translator()
