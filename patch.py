@@ -83,6 +83,7 @@ class Block:
             ptr = int(ptr[2:], 16)  # Convert pointer to int
             ptr_text = tbl[ptr_idx - 6:ptr_idx + 2]
 
+            # Replace all pointers in the table with NULL
             self.table = self.table.replace(ptr_text, "00000000")
 
             if ptr > 0x170000 and ptr < 0x1A0000: # Make sure pointer location is sufficiently large
@@ -93,23 +94,20 @@ class Block:
                 })
             tbl = tbl[:ptr_idx - 6]
 
-        # Replace all pointers in the table with NULL
-        # for p in self.pointers:
-            # self.table = self.table.replace(p["text"], "00000000")
-
 
     def get_seqs(self):
         # Checks to make sure that the sequence is a valid shift-jis sentence
         table = [x.lstrip("0") for x in self.table.split("00") if len(x) > 8]
 
-        # print(table)
-
         for s in table:
             s = utils.clean_seq(s)
 
             seq = utils.decode_seq(bytes.fromhex(s))
+            print(s)
             if utils.check_validity(seq) > 0.7 and len(seq) > 1:
                 self.seqs.append(s)
+
+        # print(self.seqs)
 
 
     def get_offset(self):
@@ -125,23 +123,27 @@ class Block:
         ptr_idxs = self.pointers["idx"]
         seq_idxs = self.seqs["idx"]
 
-        if ptr_idxs.size == 0 or seq_idxs.size == 0:
-            return
+        self.best = np.bincount(np.ravel(ptr_idxs[:,None] - seq_idxs[None,:])).argmax()
+        print(self.best)
+        l = len(np.intersect1d(ptr_idxs, (seq_idxs + self.best)))
 
-        # print(self.pointers)
-        # print(self.seqs)
+        # print(o)
 
-        offsets = []
-        for p in ptr_idxs:
-            offset = p - seq_idxs[0]
-            offset_idxs = ptr_idxs - offset
-            matches = np.intersect1d(offset_idxs, seq_idxs)
+        # if ptr_idxs.size == 0 or seq_idxs.size == 0:
+            # return
 
-            offsets.append((offset, len(matches)))
+        # offsets = []
+        # for p in ptr_idxs:
+            # for s in seq_idxs:
+                # offset = abs(p - s)
+                # matches = np.intersect1d(seq_idxs + offset, ptr_idxs)
 
-        self.best = max(offsets, key = lambda i : i[1])
-        self.offsets = [x for x in offsets if x[1] == self.best[1]]
+                # offsets.append((offset, len(matches)))
 
+        # self.best = max(offsets, key = lambda i : i[1])
+        # self.offsets = [x for x in offsets if x[1] == self.best[1]]
+
+        # print(len(self.offsets))
 
 
     def create_ptr_table(self):
@@ -153,7 +155,7 @@ class Block:
         # self.pointers = pd.merge(self.pointers, self.seqs, on="idx", how="left")
         self.pointers = pd.merge(self.pointers, self.seqs, on="idx")
 
-        # print(self.pointers)
+        print(self.pointers)
 
 
 def init_blocks():
@@ -186,24 +188,25 @@ def init_blocks():
         # if x in chunk:
             # print(chunk)
 
-        if "82a882cd82e682a48142" in chunk:
-            # print([x for x in chunk.split("00") if len(x) > 10])
-            # print(b.seqs)
-            # for p in b.pointers.itertuples():
-                # print(p)
-            print("ASDFDASFDS")
-            print(len(b.offsets))
-            exit()
+        # if "82a882cd82e682a48142" in chunk:
+            # # print([x for x in chunk.split("00") if len(x) > 10])
+            # # print(b.seqs)
+            # # for p in b.pointers.itertuples():
+                # # print(p)
+            # print("ASDFDASFDS")
+            # print(len(b.offsets))
+            # exit()
 
         if len(np.unique(b.pointers["hex"])) != len(b.pointers["hex"]): # If theres a duplicate pointer
             # b = Block(chunk[config.BLOCK_SIZE:], table_idx + config.BLOCK_SIZE + 48, len(blocks))
             blocks.append(b)
 
-            if not b.is_empty:
-                print(b.pointers)
-                print("Block validity", b.validity)
-                print()
+            # if not b.is_empty:
+                # print(b.pointers)
+                # print("Block validity", b.validity)
+                # print()
 
+            exit()
             chunk = ""
 
         end = table_idx
