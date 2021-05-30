@@ -4,10 +4,7 @@ All ROM utils for patching the translations back into the game
 """
 
 import os
-import re
-import sys
 import json
-
 
 import mmap
 
@@ -54,17 +51,9 @@ class Block:
 
             self.validity = len(self.pointers) / (len(self.offsets) + 0.0001)
 
-        if len(self.seqs):
+        if self.seqs:
             self.create_ptr_table()
             self.is_empty = False
-
-
-    def __str__(self):
-        out = "Block ID:" + self.tid + "----------------\n"
-        out += "Block Addr: " + hex(self.address) + "------------------"
-
-        return out
-
 
     def get_table_pointers(self):
         tbl = self.table.replace(" ", "")
@@ -107,7 +96,7 @@ class Block:
 
 
     def get_offset(self):
-        # Get sentence indices and sort 
+        # Get sentence indices and sort
         self.seqs = [(self.table.index(s), s) for s in self.seqs]
         self.seqs = pd.DataFrame(self.seqs, columns = ["idx", "seqs"])
         self.seqs = self.seqs.sort_values("idx")
@@ -117,12 +106,11 @@ class Block:
         # Get pointers and sort by relative pointer pos in table
         self.pointers = self.pointers.sort_values("idx")
 
-        # Find best offset to match max amount of pointers to sequences 
+        # Find best offset to match max amount of pointers to sequences
         ptr_idxs = np.array(self.pointers["idx"])
         seq_idxs = np.array(self.seqs["idx"])
 
         self.best = np.bincount(np.ravel(ptr_idxs[:,None] - seq_idxs[None,:])).argmax()
-        l = len(np.intersect1d(ptr_idxs, (seq_idxs + self.best)))
 
 
     def create_ptr_table(self):
@@ -156,6 +144,8 @@ def init_blocks():
         table = mm[table_idx:end].hex()
         table = table[48:len(table) - 560] # Remove table header/footer info 
 
+        print(hex(table_idx))
+
         chunk = table + chunk
 
         b = Block(chunk, table_idx + 24, len(blocks))
@@ -167,7 +157,8 @@ def init_blocks():
         # if x in chunk:
             # print(chunk)
 
-        if len(np.unique(b.pointers["hex"])) != len(b.pointers["hex"]): # If theres a duplicate pointer
+        # If theres a duplicate pointer end the chunk
+        if len(np.unique(b.pointers["hex"])) != len(b.pointers["hex"]):
             b = Block(chunk[config.BLOCK_SIZE:], table_idx + config.BLOCK_SIZE + 48, len(blocks))
             blocks.append(b)
 
