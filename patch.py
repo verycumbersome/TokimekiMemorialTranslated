@@ -46,7 +46,6 @@ class Block:
 
         # Call init functions
         self.get_table_pointers()
-
         self.pointers = pd.DataFrame(self.pointers)
 
         if len(self.pointers) > 10:
@@ -58,7 +57,6 @@ class Block:
         if len(self.seqs):
             self.create_ptr_table()
             self.is_empty = False
-
 
 
     def __str__(self):
@@ -75,8 +73,7 @@ class Block:
         if not tbl.find("80") > 6:
             return None
 
-        # Iterate through table and pop the pointer from the end of the table
-        # while appending each pointer to a list
+        # Iterate through table while appending each pointer to a list
         while tbl.find("80") > 6:
             ptr_idx = tbl.rfind("80")
             ptr = utils.read_ptr(tbl[ptr_idx - 6:ptr_idx + 2])
@@ -97,13 +94,12 @@ class Block:
 
     def get_seqs(self):
         # Checks to make sure that the sequence is a valid shift-jis sentence
-        table = [x.lstrip("0") for x in self.table.split("00") if len(x) > 8]
+        table = [x.lstrip("0") for x in self.table.split("00") if len(x) > 4]
 
         for s in table:
             s = utils.clean_seq(s)
 
             seq = utils.decode_seq(bytes.fromhex(s))
-            print(s)
             if utils.check_validity(seq) > 0.7 and len(seq) > 1:
                 self.seqs.append(s)
 
@@ -116,38 +112,21 @@ class Block:
         self.seqs = pd.DataFrame(self.seqs, columns = ["idx", "seqs"])
         self.seqs = self.seqs.sort_values("idx")
 
+        print(self.seqs)
+
         # Get pointers and sort by relative pointer pos in table
         self.pointers = self.pointers.sort_values("idx")
 
         # Find best offset to match max amount of pointers to sequences 
-        ptr_idxs = self.pointers["idx"]
-        seq_idxs = self.seqs["idx"]
+        ptr_idxs = np.array(self.pointers["idx"])
+        seq_idxs = np.array(self.seqs["idx"])
 
         self.best = np.bincount(np.ravel(ptr_idxs[:,None] - seq_idxs[None,:])).argmax()
-        print(self.best)
         l = len(np.intersect1d(ptr_idxs, (seq_idxs + self.best)))
-
-        # print(o)
-
-        # if ptr_idxs.size == 0 or seq_idxs.size == 0:
-            # return
-
-        # offsets = []
-        # for p in ptr_idxs:
-            # for s in seq_idxs:
-                # offset = abs(p - s)
-                # matches = np.intersect1d(seq_idxs + offset, ptr_idxs)
-
-                # offsets.append((offset, len(matches)))
-
-        # self.best = max(offsets, key = lambda i : i[1])
-        # self.offsets = [x for x in offsets if x[1] == self.best[1]]
-
-        # print(len(self.offsets))
 
 
     def create_ptr_table(self):
-        self.pointers["idx"] -= self.best[0]
+        self.pointers["idx"] -= self.best
         self.pointers["addr"] = list(map(hex, self.pointers["idx"] + self.address))
         self.pointers["addr"] = np.array(self.pointers["addr"])
 
@@ -188,17 +167,8 @@ def init_blocks():
         # if x in chunk:
             # print(chunk)
 
-        # if "82a882cd82e682a48142" in chunk:
-            # # print([x for x in chunk.split("00") if len(x) > 10])
-            # # print(b.seqs)
-            # # for p in b.pointers.itertuples():
-                # # print(p)
-            # print("ASDFDASFDS")
-            # print(len(b.offsets))
-            # exit()
-
         if len(np.unique(b.pointers["hex"])) != len(b.pointers["hex"]): # If theres a duplicate pointer
-            # b = Block(chunk[config.BLOCK_SIZE:], table_idx + config.BLOCK_SIZE + 48, len(blocks))
+            b = Block(chunk[config.BLOCK_SIZE:], table_idx + config.BLOCK_SIZE + 48, len(blocks))
             blocks.append(b)
 
             # if not b.is_empty:
@@ -214,37 +184,9 @@ def init_blocks():
     return blocks
 
 
-def solve_blocks(blocks):
-    graph = []
-
-    # for b in blocks:
-        # print(b.pointers)
-
-    # for b1 in tqdm(range(len(blocks)), desc="solving blocks"):
-    # for b1 in range(len(blocks)):
-        # best = 0
-        # best_match = None
-
-        # # for b2 in tqdm(range(b1 + 1, len(blocks)), desc="block", leave = False):
-        # for b2 in range(b1 + 1, len(blocks)):
-            # match = blocks[b1].match_block(blocks[b2])
-
-            # if match > best:
-                # best = match
-                # best_match = (b1, b2)
-
-        # graph.append(best_match)
-
-    # print(graph)
-
-    # for b in blocks:
-        # print(b)
-        # print(b.next)
-        # print()
-
 
 if __name__=="__main__":
-    blocks = init_blocks()[:20]
+    blocks = init_blocks()
 
     # with open("test_table.txt", "r") as test_table_fp:
         # chunk = test_table_fp.read()
@@ -262,5 +204,3 @@ if __name__=="__main__":
 
         # if index > 2:
             # break
-
-    solve_blocks(blocks)

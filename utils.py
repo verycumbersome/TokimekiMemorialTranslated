@@ -20,14 +20,6 @@ def clean_seq(seq):
     """handles the cleaning of a sequence to ensure correct shift-jis encoding"""
     seq = seq[:len(seq) - (len(seq) % 2)] # If seq is incorrect number of bytes
 
-    # Make sure seq starts with 8 or 9
-    # start_idx = 0
-    # if seq.find("8") >= 0:
-        # start_idx = seq.find("8")
-    # if seq.find("9") >= 0 and seq.find("9") < start_idx:
-        # start_idx = seq.find("9")
-    # seq = seq[start_idx:]
-
     return seq
 
 
