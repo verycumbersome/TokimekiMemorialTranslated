@@ -29,6 +29,7 @@ mm = mmap.mmap(f_ptr, 0, prot=mmap.PROT_READ)
 class Block:
     def __init__(self, table, address, block_num):
         self.table = table
+        self.chunk = table
         self.address = address
         self.block_num = block_num
 
@@ -48,14 +49,15 @@ class Block:
         if len(self.pointers) > 10:
             self.get_seqs()
             self.get_offset()
-
             self.validity = len(self.pointers) / (len(self.offsets) + 0.0001)
 
-        if self.seqs:
+        if len(self.seqs):
             self.create_ptr_table()
             self.is_empty = False
 
     def get_table_pointers(self):
+
+        print(self.table)
         tbl = self.table.replace(" ", "")
 
         # Make the pointer is the correct length
@@ -80,94 +82,73 @@ class Block:
                 })
             tbl = tbl[:ptr_idx - 6]
 
-
     def get_seqs(self):
-        # Checks to make sure that the sequence is a valid shift-jis sentence
-        table = [x.lstrip("0") for x in self.table.split("00") if len(x) > 4]
-
-        for s in table:
-            s = utils.clean_seq(s)
-
-            seq = utils.decode_seq(bytes.fromhex(s))
-            if utils.check_validity(seq) > 0.7 and len(seq) > 1:
-                self.seqs.append(s)
-
-        # print(self.seqs)
-
-
-    def get_offset(self):
-        # Get sentence indices and sort
+        # Get sentence indices
+        self.seqs = [s.lstrip("0") for s in self.table.split("00") if len(s) > 8]
         self.seqs = [(self.table.index(s), s) for s in self.seqs]
         self.seqs = pd.DataFrame(self.seqs, columns = ["idx", "seqs"])
-        self.seqs = self.seqs.sort_values("idx")
 
-        print(self.seqs)
-
-        # Get pointers and sort by relative pointer pos in table
+    def get_offset(self):
         self.pointers = self.pointers.sort_values("idx")
+        self.seqs = self.seqs.sort_values("idx")
 
         # Find best offset to match max amount of pointers to sequences
         ptr_idxs = np.array(self.pointers["idx"])
         seq_idxs = np.array(self.seqs["idx"])
 
-        self.best = np.bincount(np.ravel(ptr_idxs[:,None] - seq_idxs[None,:])).argmax()
+        matches = np.ravel(ptr_idxs[:,None] - seq_idxs[None,:])
+        self.offset = np.bincount(matches).argmax()
 
-
-    def create_ptr_table(self):
-        self.pointers["idx"] -= self.best
-        self.pointers["addr"] = list(map(hex, self.pointers["idx"] + self.address))
-        self.pointers["addr"] = np.array(self.pointers["addr"])
+:   def create_ptr_table(self):
+        self.seqs["idx"] += self.offset
+        self.pointers["addr"] = self.pointers["idx"] + self.address
 
         # Merge matching pointers and seqs given best offset
-        # self.pointers = pd.merge(self.pointers, self.seqs, on="idx", how="left")
-        self.pointers = pd.merge(self.pointers, self.seqs, on="idx")
+        # self.pointers = pd.merge(self.pointers, self.seqs, on="idx")
+        self.pointers = pd.merge_asof(self.pointers, self.seqs,
+                                      on="idx", tolerance = 20, direction = "nearest")
+
+        self.pointers = self.pointers.dropna()
 
         print(self.pointers)
+        print(len(self.pointers))
 
 
 def init_blocks():
-    # x = "82 E0 8D A1 81 41 91 96 82 C1 82 C4 82 AB 82 BD 82 CC 81 48 00 00 82 A0 82 A0 81 41 82 BB 82 A4 82 BE 82 E6 81 42 20 8C 4E 82 E0 82 BB 82 A4 82 C8 82 CC 81 48 00 8E 84 81 41 96 88 92 A9 82 54 82 4F 83 4C 83 8D 82 CC 20 83 8D 81 5B 83 68 83 8F 81 5B 83 4E 82 F0 20 8C 87 82 A9 82 B5 82 BD 82 B1 82 C6 82 C8 82 A2 82 A9 82 E7 81 42 00 00 00 00 82 DC 81 41 96 88 92 A9 81 41 82 54 82 4F 83 4C 83 8D 81 49 20 8C 4E 81 63 81 41 82 AB 82 E7 82 DF 82 AB 8D 82 8D 5A 82 CC 90 6C 81 48 00 00 00 82 A4 82 F1 81 41 82 BB 82 A4 81 42 20 8E 84 81 41 90 B4 90 EC 96 5D 81 42 20 8C 4E 82 E0 82 BB 82 A4 82 C8 82 CC 81 48".replace(" ", "").lower()
-
     chunk = ""
 
     blocks = []
     end = config.MEM_MAX
 
-    # spinner.start()
+    counter = 0
     while True:
         table_idx = mm.rfind(config.TABLE_SEP, config.MEM_MIN, end)
 
         if table_idx < 1: # Stop parsing at end of bin file
-            # spinner.stop()
             break
 
         table = mm[table_idx:end].hex()
         table = table[48:len(table) - 560] # Remove table header/footer info 
 
-        print(hex(table_idx))
-
         chunk = table + chunk
 
         b = Block(chunk, table_idx + 24, len(blocks))
+
+        print(b.pointers)
 
         if b.pointers.empty:
             end = table_idx
             continue
 
-        # if x in chunk:
-            # print(chunk)
-
-        # If theres a duplicate pointer end the chunk
+        # # If theres a duplicate pointer end the chunk
         if len(np.unique(b.pointers["hex"])) != len(b.pointers["hex"]):
             b = Block(chunk[config.BLOCK_SIZE:], table_idx + config.BLOCK_SIZE + 48, len(blocks))
             blocks.append(b)
 
-            # if not b.is_empty:
-                # print(b.pointers)
-                # print("Block validity", b.validity)
-                # print()
+            for p in b.pointers.itertuples():
+                print(tuple(p))
 
-            exit()
+            # exit()
             chunk = ""
 
         end = table_idx
@@ -177,21 +158,19 @@ def init_blocks():
 
 
 if __name__=="__main__":
-    blocks = init_blocks()
+    # blocks = init_blocks()
 
-    # with open("test_table.txt", "r") as test_table_fp:
-        # chunk = test_table_fp.read()
+    with open("test_table2.txt", "r") as test_table_fp:
+        chunk = test_table_fp.read()
 
     # blocks = {}
     # chunk = chunk.split("00FFFFFFFFFFFFFFFFFFFF00")
-    # chunk = [x.replace("\n", "")[:config.BLOCK_SIZE] for x in chunk if x]
+    # chunk = [x.replace("\n", "")[24:config.BLOCK_SIZE] for x in chunk if x]
+    # chunk = "".join(chunk)
 
-    # for index, tbl in enumerate(chunk):
-        # tid = tbl[:8]
-        # b = Block(tid, tbl, index * 4096, 1)
+    # print(chunk)
 
-        # blocks[index] = b
+    b = Block(chunk, 0, 0)
 
-
-        # if index > 2:
-            # break
+    # print(b.seqs)
+    # print(b.pointers)
