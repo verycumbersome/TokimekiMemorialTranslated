@@ -1,5 +1,6 @@
 patch/Atlas.bin
 patch/Atlas.nes
+patched_rom.bin
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

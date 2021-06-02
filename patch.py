@@ -10,6 +10,7 @@ import mmap
 
 from halo import Halo
 from tqdm import tqdm
+from shutil import copyfile
 
 import numpy as np
 import pandas as pd
@@ -22,8 +23,8 @@ path = os.path.dirname(__file__)
 spinner = Halo(text='Creating blocks', spinner='dots')
 
 # Define globals
-f_ptr = os.open(os.path.join(path, config.BIN_PATH), os.O_RDWR)
-mm = mmap.mmap(f_ptr, 0, prot=mmap.PROT_READ)
+rom_fp = os.open(os.path.join(path, config.BIN_PATH), os.O_RDWR)
+mm = mmap.mmap(rom_fp, 0, prot=mmap.PROT_READ)
 
 
 class Block:
@@ -63,7 +64,8 @@ class Block:
                     "hex":hex(ptr),
                     "text":ptr_text,
                     "idx":ptr,
-                    "location":hex((self.table.index(ptr_text) // 2) + self.address),
+                    # "location":hex((self.table.find(ptr_text) // 2) + self.address),
+                    "location":(self.table.find(ptr_text) // 2) + self.address,
                 })
             tbl = tbl[:ptr_idx - 6]
 
@@ -86,16 +88,14 @@ class Block:
         self.offset = np.bincount(np.ravel(ptr_idxs[:,None] - seq_idxs[None,:])).argmax()
 
     def create_ptr_table(self):
+        # Find address of relative pointers to seqs in the ROM
         self.seqs["addr"] = (self.seqs["idx"] + self.address).map(hex)
+
+        # Apply best offset to the sequence indices
         self.seqs["idx"] += self.offset
 
         # Merge matching pointers and seqs given best offset
         self.pointers = pd.merge(self.seqs, self.pointers, on="idx")
-
-        # Find address of relative pointers to seqs in the ROM
-        # self.pointers["addr"] = (self.pointers["idx"] + self.address).map(hex)
-
-        print(self.pointers)
 
 
 def init_blocks():
@@ -104,6 +104,7 @@ def init_blocks():
     end = config.MEM_MAX
 
     blocks = []
+    spinner.start()
     while True:
         table_idx = mm.rfind(config.TABLE_SEP, config.MEM_MIN, end)
 
@@ -129,16 +130,48 @@ def init_blocks():
 
             print(b.pointers)
 
+            return(blocks)
+
             chunk = ""
-            exit()
 
         end = table_idx
+
+    spinner.stop()
 
     return blocks
 
 
+def patch(blocks):
+    patched_path = "patched_rom.bin"
+
+    copyfile(config.BIN_PATH, patched_path)
+
+    patched_fp = os.open(os.path.join(path, patched_path), os.O_RDWR)
+    patched_mm = mmap.mmap(patched_fp, 0, prot=mmap.PROT_WRITE)
+
+    counter = 0x0000
+    for b in blocks:
+        for ptr in b.pointers.iterrows():
+            loc = ptr[1]["location"]
+            p = patched_mm[loc:loc+4].hex()
+            if "80" in p:
+                print(ptr)
+
+                patched_mm.seek(loc)
+                patched_mm.write(b"\x00\x00\x00\x00")
+
+        # print(b.pointers)
+
+    # with open("ROM.bin", "w+") as patched_rom:
+        # pass
+
+
+
+
 if __name__=="__main__":
     blocks = init_blocks()
+
+    patch(blocks)
 
     # with open("test_table2.txt", "r") as test_table_fp:
         # chunk = test_table_fp.read()
