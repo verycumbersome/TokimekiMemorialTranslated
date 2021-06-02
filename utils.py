@@ -139,7 +139,7 @@ if __name__=="__main__":
 
         # seq = translator.translate(seq, lang_tgt="en")
         # print(seq)
-    seq = "Hey Stella"
+    seq = "This is a longer sentence but the text is fucked"
 
     fp = open("pointer_table.json", "w")
     seq = encode_english(seq)
