@@ -121,6 +121,7 @@ def init_blocks():
         chunk = table + chunk
 
         b = Block(chunk, table_idx + 24)
+        print(hex(table_idx))
 
         if not len(b.pointers):
             end = table_idx
@@ -173,8 +174,8 @@ def patch(blocks):
             patched_mm.write(new_ptr)
 
             seq = utils.encode_english("text goes here")
-            print(seq)
             seq.append(0)
+
             out[str(counter - 0xffff0000)] = seq
 
             counter += 1
