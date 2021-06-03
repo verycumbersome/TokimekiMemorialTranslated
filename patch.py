@@ -30,7 +30,11 @@ mm = mmap.mmap(rom_fp, 0, prot=mmap.PROT_READ)
 class Block:
     def __init__(self, table, address):
         self.table = table
+        self.chunk = table
         self.address = address
+
+        # Make sure the block size is correct
+        assert len(table) % config.BLOCK_SIZE == 0, "Incorrect block table length"
 
         # Initialize class vars
         self.seqs = []
@@ -56,16 +60,14 @@ class Block:
             ptr_idx = tbl.rfind("80")
             ptr_text = tbl[ptr_idx - 6:ptr_idx + 2]
 
-            ptr = utils.read_ptr(ptr_text)
+            ptr = utils.reverse_ptr(ptr_text)
             ptr = int(ptr[2:], 16)  # Get int value of pointer
 
-            if ptr > 0x170000 and ptr < 0x1A0000: # Make sure pointer location is sufficiently large
+            if ptr > 0x180000 and ptr < 0x1A0000: # Make sure pointer location is sufficiently large
                 self.pointers.append({
                     "hex":hex(ptr),
                     "text":ptr_text,
                     "idx":ptr,
-                    # "location":hex((self.table.find(ptr_text) // 2) + self.address),
-                    "location":(self.table.find(ptr_text) // 2) + self.address,
                 })
             tbl = tbl[:ptr_idx - 6]
 
@@ -75,8 +77,9 @@ class Block:
         self.pointers = pd.DataFrame(self.pointers)
 
     def get_seqs(self):
+        #TODO FIX THE SEQUENCE EXTRACTION FROM TABLE
         """Get sequences and indices from table in ROM"""
-        self.seqs = [s.lstrip("0") for s in self.table.split("00") if len(s) > 8]
+        self.seqs = [s.lstrip("0") for s in self.table.split("00") if len(s) > 4]
         self.seqs = [(self.table.index(s) // 2, s) for s in self.seqs]
         self.seqs = pd.DataFrame(self.seqs, columns = ["idx", "seqs"])
 
@@ -89,7 +92,7 @@ class Block:
 
     def create_ptr_table(self):
         # Find address of relative pointers to seqs in the ROM
-        self.seqs["addr"] = (self.seqs["idx"] + self.address).map(hex)
+        # self.seqs["addr"] = (self.seqs["idx"] + self.address).map(hex)
 
         # Apply best offset to the sequence indices
         self.seqs["idx"] += self.offset
@@ -104,7 +107,8 @@ def init_blocks():
     end = config.MEM_MAX
 
     blocks = []
-    spinner.start()
+
+    # spinner.start()
     while True:
         table_idx = mm.rfind(config.TABLE_SEP, config.MEM_MIN, end)
 
@@ -122,21 +126,27 @@ def init_blocks():
             end = table_idx
             continue
 
-        overlap = len(b.pointers["hex"]) - len(np.unique(b.pointers["hex"]))
 
         # If theres a duplicate pointer end the chunk
+        overlap = len(b.pointers["hex"]) - len(np.unique(b.pointers["hex"]))
         if overlap > 42:
+            b.pointers["location"] = b.pointers["text"].map(
+                lambda x: mm.find(bytes.fromhex(x), table_idx)
+            )
+            # b.pointers["addr"] = b.pointers["seqs"].map(
+                # lambda x: mm.find(bytes.fromhex(x), table_idx)
+            # )
             blocks.append(b)
 
-            print(b.pointers)
+            # print(b.pointers)
 
-            return(blocks)
+            # return(blocks)
 
             chunk = ""
 
         end = table_idx
 
-    spinner.stop()
+    # spinner.stop()
 
     return blocks
 
@@ -149,23 +159,28 @@ def patch(blocks):
     patched_fp = os.open(os.path.join(path, patched_path), os.O_RDWR)
     patched_mm = mmap.mmap(patched_fp, 0, prot=mmap.PROT_WRITE)
 
-    counter = 0x0000
+    counter = 0xffff0000
+
+    out = {}
     for b in blocks:
         for ptr in b.pointers.iterrows():
             loc = ptr[1]["location"]
             p = patched_mm[loc:loc+4].hex()
-            if "80" in p:
-                print(ptr)
 
-                patched_mm.seek(loc)
-                patched_mm.write(b"\x00\x00\x00\x00")
+            new_ptr = bytes.fromhex(utils.reverse_ptr(hex(counter)[2:]))
 
-        # print(b.pointers)
+            patched_mm.seek(loc)
+            patched_mm.write(new_ptr)
 
-    # with open("ROM.bin", "w+") as patched_rom:
-        # pass
+            seq = utils.encode_english("text goes here")
+            print(seq)
+            seq.append(0)
+            out[str(counter - 0xffff0000)] = seq
 
+            counter += 1
 
+    ptr_tbl_fp = open("pointer_table.json", "w")
+    json.dump(out, ptr_tbl_fp)
 
 
 if __name__=="__main__":

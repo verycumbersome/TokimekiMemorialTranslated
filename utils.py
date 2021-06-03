@@ -24,13 +24,12 @@ def clean_seq(seq):
 
 
 
-def read_ptr(ptr):
-    """Read ps1 pointer from file"""
+def reverse_ptr(ptr):
+    """Reverse ps1 pointer from file. Useful for reading and writing ptrs to ROM"""
     ptr = reversed([ptr[i:i + 2] for i in range(0, len(ptr), 2)])
     ptr = "".join(list(ptr))
 
     return ptr
-
 
 def handle_dup(seq):
     """Takes string sequence and checks for duplicates"""
@@ -91,7 +90,7 @@ def encode_english(seq):
 
     out = "".join(out)
 
-    print(out)
+    # print(out)
 
     return enc
 
