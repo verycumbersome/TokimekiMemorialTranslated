@@ -94,7 +94,6 @@ def encode_english(seq):
 
     return enc
 
-
 def check_validity(seq: str) -> int:
     """Returns proportion of valid shift-jis characters in a string"""
     valid = 0
@@ -107,6 +106,19 @@ def check_validity(seq: str) -> int:
         return valid / len(seq)
 
     return 0
+
+# def check_validity(seq: str) -> int:
+    # """Returns proportion of valid shift-jis characters in a string"""
+    # valid = 0
+    # for c in [seq[i:i+2] for i in range(0, len(seq), 2)]:
+        # enc_char = int(c.encode("shift-jis", "ignore").hex(), 16)
+        # if 0x8140 < enc_char < 0x9FFC:
+            # valid += 1
+
+    # if len(seq):
+        # return valid / len(seq)
+
+    # return 0
 
 
 def decode_seq(seq: bytes) -> str:

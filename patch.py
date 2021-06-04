@@ -63,7 +63,7 @@ class Block:
             ptr = utils.reverse_ptr(ptr_text)
             ptr = int(ptr[2:], 16)  # Get int value of pointer
 
-            if ptr > 0x180000 and ptr < 0x1A0000: # Make sure pointer location is sufficiently large
+            if ptr > 0x190000 and ptr < 0x1A0000: # Make sure pointer location is sufficiently large
                 self.pointers.append({
                     "hex":hex(ptr),
                     "text":ptr_text,
@@ -80,6 +80,27 @@ class Block:
         #TODO FIX THE SEQUENCE EXTRACTION FROM TABLE
         """Get sequences and indices from table in ROM"""
         self.seqs = [s.lstrip("0") for s in self.table.split("00") if len(s) > 4]
+
+        seqs = []
+        for s in self.seqs:
+            # try:
+            seq = utils.decode_seq(bytes.fromhex(s))
+            if utils.check_validity(seq) > 0.7 and len(seq) > 1:
+                seqs.append(s)
+            # except:
+                # pass
+
+        self.seqs = seqs
+
+        # self.seqs = [s for s in self.seqs if utils.check_validity(s) > 0.7]
+        # for s in self.seqs:
+            # print(s)
+            # print(utils.check_validity(s))
+            # print(s)
+            # print(utils.check_validity(s))
+            # print()
+        # exit()
+
         self.seqs = [(self.table.index(s) // 2, s) for s in self.seqs]
         self.seqs = pd.DataFrame(self.seqs, columns = ["idx", "seqs"])
 
@@ -99,6 +120,8 @@ class Block:
 
         # Merge matching pointers and seqs given best offset
         self.pointers = pd.merge(self.seqs, self.pointers, on="idx")
+
+        print(self.pointers)
 
 
 def init_blocks():
