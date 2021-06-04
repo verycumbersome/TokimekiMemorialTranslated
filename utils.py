@@ -88,8 +88,7 @@ def encode_english(seq: str) -> list:
 
         out += c
 
-    out = "".join(out)
-
+    # out = "".join(out)
     # print(out)
 
     return enc

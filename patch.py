@@ -38,6 +38,8 @@ class Block:
         # Initialize class vars
         self.seqs = []
         self.pointers = []
+        self.num_pointers = 0
+        self.num_seqs = 0
 
         # Call init functions
         self.get_pointers()
@@ -51,28 +53,22 @@ class Block:
         tbl = self.table.replace(" ", "")
 
         # Make the pointer is the correct length
-        if not tbl.find("80") > 6:
-            return None
+        tbl = [p[-6:] + "80" for p in self.table.split("80") if len(p) >= 6]
 
         # Iterate through table while appending each pointer to a list
-        while tbl.find("80") > 6:
-            ptr_idx = tbl.rfind("80")
-            ptr_text = tbl[ptr_idx - 6:ptr_idx + 2]
-
-            ptr = utils.reverse_ptr(ptr_text)
-            ptr = int(ptr[2:], 16)  # Get int value of pointer
+        for ptr_text in tbl:
+            ptr = int(utils.reverse_ptr(ptr_text)[2:], 16)
 
             if ptr > 0x190000 and ptr < 0x1A0000: # Make sure pointer location is sufficiently large
                 self.pointers.append({
-                    "hex":hex(ptr),
-                    "text":ptr_text,
-                    "idx":ptr,
+                    "hex": hex(ptr),
+                    "text": ptr_text,
+                    "idx": ptr
                 })
-            tbl = tbl[:ptr_idx - 6]
-
             # Replace all pointers in the table with NULL
             self.table = self.table.replace(ptr_text, "00000000")
 
+        self.num_pointers = len(self.pointers)
         self.pointers = pd.DataFrame(self.pointers)
 
     def get_seqs(self):
@@ -80,9 +76,9 @@ class Block:
         """Get sequences and indices from table in ROM"""
         self.seqs = [s.lstrip("0") for s in self.table.split("00") if len(s) > 4]
         self.seqs = [s for s in self.seqs if utils.check_validity(s) > 0.7]
-        print(self.seqs)
         self.seqs = [(self.table.index(s) // 2, s) for s in self.seqs]
         self.seqs = pd.DataFrame(self.seqs, columns = ["idx", "seqs"])
+        self.num_seqs = len(self.seqs)
 
     def get_offset(self):
         """Find best offset to match max amount of pointers to sequences"""
@@ -101,7 +97,7 @@ class Block:
         # Merge matching pointers and seqs given best offset
         self.pointers = pd.merge(self.seqs, self.pointers, on="idx")
 
-        print(self.pointers)
+        # print(self.pointers)
 
 
 def init_blocks():
@@ -111,7 +107,6 @@ def init_blocks():
 
     blocks = []
 
-    # spinner.start()
     while True:
         table_idx = mm.rfind(config.TABLE_SEP, config.MEM_MIN, end)
 
@@ -119,38 +114,40 @@ def init_blocks():
             break
 
         table = mm[table_idx:end].hex()
-        table = table[48:len(table) - 560] # Remove table header/footer info 
+        table = table[config.HEADER_SIZE:-config.FOOTER_SIZE] # Remove table header/footer info 
 
         chunk = table + chunk
 
         b = Block(chunk, table_idx + 24)
+
+        print(b.num_pointers)
         print(hex(table_idx))
 
         if not len(b.pointers):
             end = table_idx
             continue
 
+        # print(len(b.pointers), len(np.unique(b.pointers["hex"])))
 
         # If theres a duplicate pointer end the chunk
-        overlap = len(b.pointers["hex"]) - len(np.unique(b.pointers["hex"]))
-        if overlap > 42:
-            b.pointers["location"] = b.pointers["text"].map(
-                lambda x: mm.find(bytes.fromhex(x), table_idx)
-            )
-            # b.pointers["addr"] = b.pointers["seqs"].map(
+        # overlap = len(b.pointers["hex"]) - len(np.unique(b.pointers["hex"]))
+        # if overlap > 42:
+        # tmp = Block(table, table_idx + 24)
+        # if not len(tmp.pointers):
+            # b.pointers["location"] = b.pointers["text"].map(
                 # lambda x: mm.find(bytes.fromhex(x), table_idx)
             # )
-            blocks.append(b)
+            # # b.pointers["addr"] = b.pointers["seqs"].map(
+                # # lambda x: mm.find(bytes.fromhex(x), table_idx)
+            # # )
+            # blocks.append(b)
 
             # print(b.pointers)
 
-            # return(blocks)
-
-            chunk = ""
+            # chunk = ""
+            # return blocks
 
         end = table_idx
-
-    # spinner.stop()
 
     return blocks
 
