@@ -81,16 +81,16 @@ class Block:
         """Get sequences and indices from table in ROM"""
         self.seqs = [s.lstrip("0") for s in self.table.split("00") if len(s) > 4]
 
-        seqs = []
-        for s in self.seqs:
-            # try:
-            seq = utils.decode_seq(bytes.fromhex(s))
-            if utils.check_validity(seq) > 0.7 and len(seq) > 1:
-                seqs.append(s)
-            # except:
-                # pass
+        # seqs = []
+        # for s in self.seqs:
+            # # try:
+            # seq = utils.decode_seq(bytes.fromhex(s))
+            # if utils.check_validity(seq) > 0.7 and len(seq) > 1:
+                # seqs.append(s)
+            # # except:
+                # # pass
 
-        self.seqs = seqs
+        # self.seqs = seqs
 
         # self.seqs = [s for s in self.seqs if utils.check_validity(s) > 0.7]
         # for s in self.seqs:
