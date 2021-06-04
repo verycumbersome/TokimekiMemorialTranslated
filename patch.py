@@ -30,7 +30,6 @@ mm = mmap.mmap(rom_fp, 0, prot=mmap.PROT_READ)
 class Block:
     def __init__(self, table, address):
         self.table = table
-        self.chunk = table
         self.address = address
 
         # Make sure the block size is correct
@@ -80,27 +79,8 @@ class Block:
         #TODO FIX THE SEQUENCE EXTRACTION FROM TABLE
         """Get sequences and indices from table in ROM"""
         self.seqs = [s.lstrip("0") for s in self.table.split("00") if len(s) > 4]
-
-        # seqs = []
-        # for s in self.seqs:
-            # # try:
-            # seq = utils.decode_seq(bytes.fromhex(s))
-            # if utils.check_validity(seq) > 0.7 and len(seq) > 1:
-                # seqs.append(s)
-            # # except:
-                # # pass
-
-        # self.seqs = seqs
-
-        # self.seqs = [s for s in self.seqs if utils.check_validity(s) > 0.7]
-        # for s in self.seqs:
-            # print(s)
-            # print(utils.check_validity(s))
-            # print(s)
-            # print(utils.check_validity(s))
-            # print()
-        # exit()
-
+        self.seqs = [s for s in self.seqs if utils.check_validity(s) > 0.7]
+        print(self.seqs)
         self.seqs = [(self.table.index(s) // 2, s) for s in self.seqs]
         self.seqs = pd.DataFrame(self.seqs, columns = ["idx", "seqs"])
 

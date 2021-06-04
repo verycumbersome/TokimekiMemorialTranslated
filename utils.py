@@ -24,14 +24,14 @@ def clean_seq(seq):
 
 
 
-def reverse_ptr(ptr):
+def reverse_ptr(ptr: str) -> str:
     """Reverse ps1 pointer from file. Useful for reading and writing ptrs to ROM"""
     ptr = reversed([ptr[i:i + 2] for i in range(0, len(ptr), 2)])
     ptr = "".join(list(ptr))
 
     return ptr
 
-def handle_dup(seq):
+def handle_dup(seq: str) -> str:
     """Takes string sequence and checks for duplicates"""
     dup = seq.split(b" ")
     dup = sum([dup[c] == dup[(c+1)%len(dup)] for c in range(len(dup))])
@@ -42,7 +42,7 @@ def handle_dup(seq):
     return seq
 
 
-def encode_english(seq):
+def encode_english(seq: str) -> list:
     """encodes an english sequence into equivilant english shift-jis chars"""
     enc = []
     out = []
@@ -94,31 +94,19 @@ def encode_english(seq):
 
     return enc
 
-def check_validity(seq: str) -> int:
+
+def check_validity(seq: str) -> float:
     """Returns proportion of valid shift-jis characters in a string"""
     valid = 0
-    for c in seq:
-        enc_char = int(c.encode("shift-jis", "ignore").hex(), 16)
+    for c in [seq[i:i+4] for i in range(0, len(seq), 4)]:
+        enc_char = int(c, 16)
         if 0x8140 < enc_char < 0x9FFC:
             valid += 1
 
     if len(seq):
-        return valid / len(seq)
+        return valid / (len(seq) / 4)
 
     return 0
-
-# def check_validity(seq: str) -> int:
-    # """Returns proportion of valid shift-jis characters in a string"""
-    # valid = 0
-    # for c in [seq[i:i+2] for i in range(0, len(seq), 2)]:
-        # enc_char = int(c.encode("shift-jis", "ignore").hex(), 16)
-        # if 0x8140 < enc_char < 0x9FFC:
-            # valid += 1
-
-    # if len(seq):
-        # return valid / len(seq)
-
-    # return 0
 
 
 def decode_seq(seq: bytes) -> str:
