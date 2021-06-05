@@ -52,7 +52,7 @@ class Block:
     def get_pointers(self):
         tbl = self.table.replace(" ", "")
 
-        # Make the pointer is the correct length
+        # Extract all potential pointers from table
         tbl = [p[-6:] + "80" for p in self.table.split("80") if len(p) >= 6]
 
         # Iterate through table while appending each pointer to a list
@@ -65,6 +65,7 @@ class Block:
                     "text": ptr_text,
                     "idx": ptr
                 })
+
             # Replace all pointers in the table with NULL
             self.table = self.table.replace(ptr_text, "00000000")
 
@@ -72,11 +73,14 @@ class Block:
         self.pointers = pd.DataFrame(self.pointers)
 
     def get_seqs(self):
-        #TODO FIX THE SEQUENCE EXTRACTION FROM TABLE
         """Get sequences and indices from table in ROM"""
-        self.seqs = [s.lstrip("0") for s in self.table.split("00") if len(s) > 4]
-        self.seqs = [s for s in self.seqs if utils.check_validity(s) > 0.7]
-        self.seqs = [(self.table.index(s) // 2, s) for s in self.seqs]
+        self.seqs = []
+        for seq in self.table.split("00"):
+            seq = seq.lstrip("0")
+
+            if utils.check_validity(seq):
+                self.seqs.append((self.table.index(seq) // 2, seq))
+
         self.seqs = pd.DataFrame(self.seqs, columns = ["idx", "seqs"])
         self.num_seqs = len(self.seqs)
 
@@ -88,14 +92,10 @@ class Block:
         self.offset = np.bincount(np.ravel(ptr_idxs[:,None] - seq_idxs[None,:])).argmax()
 
     def create_ptr_table(self):
-        # Find address of relative pointers to seqs in the ROM
-        # self.seqs["addr"] = (self.seqs["idx"] + self.address).map(hex)
-
-        # Apply best offset to the sequence indices
+        # Apply best offset to the sequence indices and merge given offset
         self.seqs["idx"] += self.offset
-
-        # Merge matching pointers and seqs given best offset
         self.pointers = pd.merge(self.seqs, self.pointers, on="idx")
+        # self.pointers = self.pointers.drop_duplicates(subset = ["idx"])
 
         # print(self.pointers)
 
@@ -106,7 +106,8 @@ def init_blocks():
     end = config.MEM_MAX
 
     blocks = []
-
+    tmp = 0
+    block_counter = 0
     while True:
         table_idx = mm.rfind(config.TABLE_SEP, config.MEM_MIN, end)
 
@@ -120,39 +121,37 @@ def init_blocks():
 
         b = Block(chunk, table_idx + 24)
 
-        print(b.num_pointers)
-        print(hex(table_idx))
+        # print(b.seqs)
+        # print(hex(table_idx))
+        # print(block_counter)
+
+        block_counter += 1
 
         if not len(b.pointers):
             end = table_idx
             continue
 
-        # print(len(b.pointers), len(np.unique(b.pointers["hex"])))
+        b.pointers["location"] = b.pointers["text"].map(
+            lambda x: mm.find(bytes.fromhex(x), table_idx)
+        )
+        b.pointers = b.pointers[b.pointers["location"] > 0]
+        # b.pointers["addr"] = b.pointers["seqs"].map(
+            # lambda x: mm.find(bytes.fromhex(x), table_idx)
+        # )
+        blocks.append(b)
 
-        # If theres a duplicate pointer end the chunk
-        # overlap = len(b.pointers["hex"]) - len(np.unique(b.pointers["hex"]))
-        # if overlap > 42:
-        # tmp = Block(table, table_idx + 24)
-        # if not len(tmp.pointers):
-            # b.pointers["location"] = b.pointers["text"].map(
-                # lambda x: mm.find(bytes.fromhex(x), table_idx)
-            # )
-            # # b.pointers["addr"] = b.pointers["seqs"].map(
-                # # lambda x: mm.find(bytes.fromhex(x), table_idx)
-            # # )
-            # blocks.append(b)
+        block_counter = 0
+        chunk = ""
 
-            # print(b.pointers)
+        exit()
 
-            # chunk = ""
-            # return blocks
-
+        tmp = b.num_pointers
         end = table_idx
 
     return blocks
 
 
-def patch(blocks):
+def patch_rom(blocks):
     patched_path = "patched_rom.bin"
 
     copyfile(config.BIN_PATH, patched_path)
@@ -163,7 +162,7 @@ def patch(blocks):
     counter = 0xffff0000
 
     out = {}
-    for b in blocks:
+    for b in tqdm(blocks):
         for ptr in b.pointers.iterrows():
             loc = ptr[1]["location"]
             p = patched_mm[loc:loc+4].hex()
@@ -186,11 +185,12 @@ def patch(blocks):
 
 if __name__=="__main__":
     blocks = init_blocks()
-
-    patch(blocks)
+    patch_rom(blocks)
 
     # with open("test_table2.txt", "r") as test_table_fp:
         # chunk = test_table_fp.read()
+
+    # print(len(chunk))
 
     # blocks = {}
     # chunk = chunk.split("00FFFFFFFFFFFFFFFFFFFF00")

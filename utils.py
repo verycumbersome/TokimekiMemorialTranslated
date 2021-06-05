@@ -94,18 +94,31 @@ def encode_english(seq: str) -> list:
     return enc
 
 
-def check_validity(seq: str) -> float:
-    """Returns proportion of valid shift-jis characters in a string"""
-    valid = 0
+def check_validity(seq: str) -> bool:
+    """Returns true if a sequence is valid given a set of criteria"""
+    seq = seq.replace("20", "")
+
+    jis_chars = 0
     for c in [seq[i:i+4] for i in range(0, len(seq), 4)]:
         enc_char = int(c, 16)
         if 0x8140 < enc_char < 0x9FFC:
-            valid += 1
+            jis_chars += 1
 
-    if len(seq):
-        return valid / (len(seq) / 4)
 
-    return 0
+    # Conditions for being valid sequence for pointer to point to
+    if not len(seq):
+        return False
+
+    if (jis_chars / (len(seq) * 0.25) <= 0.7):
+        return False
+
+    if len(seq) <= 8:
+        return False
+
+    if "80" in seq:
+        return False
+
+    return True
 
 
 def decode_seq(seq: bytes) -> str:
