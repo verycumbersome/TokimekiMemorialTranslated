@@ -81,8 +81,10 @@ class Block:
             if utils.check_validity(seq):
                 self.seqs.append((self.table.index(seq) // 2, seq))
 
-        self.seqs = pd.DataFrame(self.seqs, columns = ["idx", "seqs"])
         self.num_seqs = len(self.seqs)
+
+        self.seqs = pd.DataFrame(self.seqs, columns = ["idx", "seqs"])
+        self.seqs = self.seqs.drop_duplicates(subset=["idx"])
 
     def get_offset(self):
         """Find best offset to match max amount of pointers to sequences"""
@@ -95,7 +97,6 @@ class Block:
         # Apply best offset to the sequence indices and merge given offset
         self.seqs["idx"] += self.offset
         self.pointers = pd.merge(self.seqs, self.pointers, on="idx")
-        # self.pointers = self.pointers.drop_duplicates(subset = ["idx"])
 
         # print(self.pointers)
 
@@ -106,7 +107,6 @@ def init_blocks():
     end = config.MEM_MAX
 
     blocks = []
-    tmp = 0
     block_counter = 0
     while True:
         table_idx = mm.rfind(config.TABLE_SEP, config.MEM_MIN, end)
@@ -121,31 +121,37 @@ def init_blocks():
 
         b = Block(chunk, table_idx + 24)
 
-        # print(b.seqs)
-        # print(hex(table_idx))
-        # print(block_counter)
-
         block_counter += 1
 
-        if not len(b.pointers):
+        tmp = Block(table, 0)
+
+        # print(hex(table_idx))
+
+        if not len(tmp.pointers):
             end = table_idx
+
+            if block_counter > 24:
+                chunk = ""
+
             continue
 
-        b.pointers["location"] = b.pointers["text"].map(
-            lambda x: mm.find(bytes.fromhex(x), table_idx)
-        )
-        b.pointers = b.pointers[b.pointers["location"] > 0]
-        # b.pointers["addr"] = b.pointers["seqs"].map(
-            # lambda x: mm.find(bytes.fromhex(x), table_idx)
-        # )
-        blocks.append(b)
+        diff = abs(len(np.unique(b.pointers["idx"])) - b.num_pointers)
+        if diff > 42:
+            if "seqs" not in b.pointers.columns:
+                end = table_idx
+                continue
 
-        block_counter = 0
-        chunk = ""
+            b.pointers["location"] = b.pointers["text"].map(
+                lambda x: mm.find(bytes.fromhex(x), table_idx)
+            )
+            b.pointers = b.pointers[b.pointers["location"] > 0]
+            blocks.append(b)
 
-        exit()
+            print(b.pointers)
 
-        tmp = b.num_pointers
+            block_counter = 0
+            chunk = ""
+
         end = table_idx
 
     return blocks
