@@ -28,6 +28,8 @@ mm = mmap.mmap(rom_fp, 0, prot=mmap.PROT_READ)
 
 
 class Block:
+    """A block in memory from the ROM separated by the PS1 pointer separator"""
+
     def __init__(self, table, address):
         self.table = table
         self.address = address
@@ -39,7 +41,6 @@ class Block:
         self.seqs = []
         self.pointers = []
         self.num_pointers = 0
-        self.num_seqs = 0
 
         # Call init functions
         self.get_pointers()
@@ -50,16 +51,18 @@ class Block:
             self.create_ptr_table()
 
     def get_pointers(self):
+        """Get a list of all pointers in a block within a given range"""
+
         tbl = self.table.replace(" ", "")
 
         # Extract all potential pointers from table
-        tbl = [p[-6:] + "80" for p in self.table.split("80") if len(p) >= 6]
+        tbl = [p[-6:] + "80" for p in self.table.split("80") if len(p) >= 4]
 
         # Iterate through table while appending each pointer to a list
         for ptr_text in tbl:
             ptr = int(utils.reverse_ptr(ptr_text)[2:], 16)
 
-            if ptr > 0x190000 and ptr < 0x1A0000: # Make sure pointer location is sufficiently large
+            if ptr > 0x190000 and ptr < 0x19FFF0: # Make sure pointer location is sufficiently large
                 self.pointers.append({
                     "hex": hex(ptr),
                     "text": ptr_text,
@@ -67,6 +70,7 @@ class Block:
                 })
 
             # Replace all pointers in the table with NULL
+
             self.table = self.table.replace(ptr_text, "00000000")
 
         self.num_pointers = len(self.pointers)
@@ -74,6 +78,7 @@ class Block:
 
     def get_seqs(self):
         """Get sequences and indices from table in ROM"""
+
         self.seqs = []
         for seq in self.table.split("00"):
             seq = seq.lstrip("0")
@@ -81,13 +86,12 @@ class Block:
             if utils.check_validity(seq):
                 self.seqs.append((self.table.index(seq) // 2, seq))
 
-        self.num_seqs = len(self.seqs)
-
         self.seqs = pd.DataFrame(self.seqs, columns = ["idx", "seqs"])
         self.seqs = self.seqs.drop_duplicates(subset=["idx"])
 
     def get_offset(self):
         """Find best offset to match max amount of pointers to sequences"""
+
         ptr_idxs = np.array(self.pointers["idx"])
         seq_idxs = np.array(self.seqs["idx"])
 
@@ -98,24 +102,23 @@ class Block:
         self.seqs["idx"] += self.offset
         self.pointers = pd.merge(self.seqs, self.pointers, on="idx")
 
-        # print(self.pointers)
-
 
 def init_blocks():
-    chunk = ""
+    """Parses the ROM and segments into blocks with relative pointer positions"""
 
-    end = config.MEM_MAX
-
+    chunk = ""  # Chunk to append blocks to for parsing
     blocks = []
     block_counter = 0
+    end = config.MEM_MAX  # Iterator for memory max
+
     while True:
         table_idx = mm.rfind(config.TABLE_SEP, config.MEM_MIN, end)
 
-        if table_idx < 1: # Stop parsing at end of bin file
+        if table_idx < 1:
             break
 
         table = mm[table_idx:end].hex()
-        table = table[config.HEADER_SIZE:-config.FOOTER_SIZE] # Remove table header/footer info 
+        table = table[config.HEADER_SIZE:-config.FOOTER_SIZE] # Remove table header/footer info
 
         chunk = table + chunk
 
@@ -125,7 +128,7 @@ def init_blocks():
 
         tmp = Block(table, 0)
 
-        # print(hex(table_idx))
+        print(hex(table_idx))
 
         if not len(tmp.pointers):
             end = table_idx
@@ -135,6 +138,7 @@ def init_blocks():
 
             continue
 
+        # Get amount of duplicate pointers between main chunk and currect block
         diff = abs(len(np.unique(b.pointers["idx"])) - b.num_pointers)
         if diff > 42:
             if "seqs" not in b.pointers.columns:

@@ -23,13 +23,13 @@ def clean_seq(seq):
     return seq
 
 
-
 def reverse_ptr(ptr: str) -> str:
     """Reverse ps1 pointer from file. Useful for reading and writing ptrs to ROM"""
     ptr = reversed([ptr[i:i + 2] for i in range(0, len(ptr), 2)])
     ptr = "".join(list(ptr))
 
     return ptr
+
 
 def handle_dup(seq: str) -> str:
     """Takes string sequence and checks for duplicates"""
