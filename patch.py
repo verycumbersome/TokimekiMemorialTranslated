@@ -12,6 +12,8 @@ from halo import Halo
 from tqdm import tqdm
 from shutil import copyfile
 
+from google_trans_new import google_translator
+
 import numpy as np
 import pandas as pd
 
@@ -62,7 +64,7 @@ class Block:
         for ptr_text in tbl:
             ptr = int(utils.reverse_ptr(ptr_text)[2:], 16)
 
-            if ptr > 0x190000 and ptr < 0x19FFF0: # Make sure pointer location is sufficiently large
+            if ptr > 0x190000 and ptr < 0x19FFFF:  # Make sure pointer location is sufficiently large
                 self.pointers.append({
                     "hex": hex(ptr),
                     "text": ptr_text,
@@ -70,7 +72,6 @@ class Block:
                 })
 
             # Replace all pointers in the table with NULL
-
             self.table = self.table.replace(ptr_text, "00000000")
 
         self.num_pointers = len(self.pointers)
@@ -86,8 +87,9 @@ class Block:
             if utils.check_validity(seq):
                 self.seqs.append((self.table.index(seq) // 2, seq))
 
-        self.seqs = pd.DataFrame(self.seqs, columns = ["idx", "seqs"])
+        self.seqs = pd.DataFrame(self.seqs, columns=["idx", "seqs"])
         self.seqs = self.seqs.drop_duplicates(subset=["idx"])
+        self.seqs["seq_location"] = self.seqs["idx"] + self.address
 
     def get_offset(self):
         """Find best offset to match max amount of pointers to sequences"""
@@ -95,7 +97,7 @@ class Block:
         ptr_idxs = np.array(self.pointers["idx"])
         seq_idxs = np.array(self.seqs["idx"])
 
-        self.offset = np.bincount(np.ravel(ptr_idxs[:,None] - seq_idxs[None,:])).argmax()
+        self.offset = np.bincount(np.ravel(ptr_idxs[:, None] - seq_idxs[None, :])).argmax()
 
     def create_ptr_table(self):
         # Apply best offset to the sequence indices and merge given offset
@@ -118,7 +120,7 @@ def init_blocks():
             break
 
         table = mm[table_idx:end].hex()
-        table = table[config.HEADER_SIZE:-config.FOOTER_SIZE] # Remove table header/footer info
+        table = table[config.HEADER_SIZE:-config.FOOTER_SIZE]  # Remove table header/footer info
 
         chunk = table + chunk
 
@@ -132,10 +134,8 @@ def init_blocks():
 
         if not len(tmp.pointers):
             end = table_idx
-
             if block_counter > 24:
                 chunk = ""
-
             continue
 
         # Get amount of duplicate pointers between main chunk and currect block
@@ -145,13 +145,13 @@ def init_blocks():
                 end = table_idx
                 continue
 
-            b.pointers["location"] = b.pointers["text"].map(
+            b.pointers["ptr_location"] = b.pointers["text"].map(
                 lambda x: mm.find(bytes.fromhex(x), table_idx)
             )
-            b.pointers = b.pointers[b.pointers["location"] > 0]
+            b.pointers = b.pointers[b.pointers["ptr_location"] > 0]
             blocks.append(b)
 
-            print(b.pointers)
+            # print(b.pointers)
 
             block_counter = 0
             chunk = ""
@@ -161,7 +161,7 @@ def init_blocks():
     return blocks
 
 
-def patch_rom(blocks):
+def patch_rom(blocks, translation_table):
     patched_path = "patched_rom.bin"
 
     copyfile(config.BIN_PATH, patched_path)
@@ -172,17 +172,17 @@ def patch_rom(blocks):
     counter = 0xffff0000
 
     out = {}
-    for b in tqdm(blocks):
-        for ptr in b.pointers.iterrows():
-            loc = ptr[1]["location"]
-            p = patched_mm[loc:loc+4].hex()
+    for block in tqdm(blocks):
+        for ptr in block.pointers.iterrows():
+            location = ptr[1]["ptr_location"]
+            pointer = ptr[1]["seqs"]
 
             new_ptr = bytes.fromhex(utils.reverse_ptr(hex(counter)[2:]))
 
-            patched_mm.seek(loc)
+            patched_mm.seek(location)
             patched_mm.write(new_ptr)
 
-            seq = utils.encode_english("text goes here")
+            seq = utils.encode_english(translation_table[pointer])
             seq.append(0)
 
             out[str(counter - 0xffff0000)] = seq
@@ -193,9 +193,56 @@ def patch_rom(blocks):
     json.dump(out, ptr_tbl_fp)
 
 
-if __name__=="__main__":
+def create_dialog_table(blocks):
+    """Creates a json of all sequences in the blocks for translation"""
+    out = {}
+    with open(os.path.join(path, "data/dialog_seq_table.json"), "w+") as seqs_fp:
+        for b in blocks:
+            for p in b.pointers.iterrows():
+                out[p[1]["seqs"]] = "test"  # For each pointer in block add to dialog table
+
+        json.dump(out, seqs_fp, indent=4)
+
+
+def translate_dialog_table(dialog_table):
+    """Translates a json of all sequences in the blocks"""
+    translation_path = os.path.join(path, "data/translation_seq_table.json")
+    translator = google_translator()
+
+    if os.path.isfile(translation_path):
+        with open(translation_path, "r+") as translation_fp:
+            return json.load(translation_fp)
+
+
+    translation_table = {}
+    with open(translation_path, "w+") as translation_fp:
+        for key in tqdm(dialog_table):
+            try:
+                item = bytes.fromhex(key).decode("shift-jis", "ignore")
+                print(key)
+                text = translator.translate(item, lang_tgt="en")
+                translation_table[key] = text
+                print(text, end="\r")
+
+            except:
+                translation_table[key] = "asdf"
+                print("banned from google", end="\r")
+                continue
+
+        json.dump(translation_table, translation_fp, indent=4)
+
+    return translation_table
+
+
+if __name__ == "__main__":
     blocks = init_blocks()
-    patch_rom(blocks)
+
+    create_dialog_table(blocks)
+
+    with open(os.path.join(path, "data/dialog_seq_table.json"), "r") as dialog_fp:
+        dialog_table = json.load(dialog_fp)
+        translation_table = translate_dialog_table(dialog_table)
+        patch_rom(blocks, translation_table)
 
     # with open("test_table2.txt", "r") as test_table_fp:
         # chunk = test_table_fp.read()
