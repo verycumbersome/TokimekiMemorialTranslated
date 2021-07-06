@@ -12,8 +12,6 @@ from halo import Halo
 from tqdm import tqdm
 from shutil import copyfile
 
-from google_trans_new import google_translator
-
 import numpy as np
 import pandas as pd
 

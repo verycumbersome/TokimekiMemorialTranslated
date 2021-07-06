@@ -18,17 +18,13 @@ import config
 
 translator = google_translator()
 
-# Load your API key from an environment variable or secret management service
 openai.api_key = os.getenv("OPENAI_API_KEY")
-
-start_sequence = "\nEnglish:"
-prompt = "Japanese: わたしは　にほんごがすこししかはなせません。\nEnglish: Unfortunately, I speak only a little Japanese..\n\nJapanese: やばい！あのジェットコースター、めっちゃたかい。\nEnglish: Oh my god! That roller coaster is super tall.\n\nJapanese: わぉ！宝くじ、1,000万円 当たった！\nEnglish: Wow! I won a lottery of 10,000,000 yen!\n\nJapanese: "
 
 def translate(seq):
     """Uses GPT3 to translate japanese text to English"""
     response = openai.Completion.create(
         engine="davinci",
-        prompt=prompt + seq + start_sequence,
+        prompt=config.PROMPT + seq + config.START_SEQUENCE,
         temperature=0.15,
         max_tokens=100,
         top_p=1,
@@ -49,8 +45,8 @@ def create_table(filename):
     end = per_idx = qst_idx = config.MEM_MAX
     pbar = tqdm.tqdm(total=len(mm))
 
-    counter = 0
     #TODO make sentence search better
+    counter = 0
     while (per_idx > 1 and qst_idx > 1):
         per_idx = mm.rfind(b"\x81\x42", config.MEM_MIN, end)  # Period
         qst_idx = mm.rfind(b"\x81\x48", config.MEM_MIN, end)  # Question mark
@@ -72,13 +68,6 @@ def create_table(filename):
                 print("SEQ:",seq)
                 print()
                 print(utils.check_validity(seq))
-
-                # if "あー、今日も疲れたな。急いで、家に帰ろう。" in seq:
-                    # print(seq)
-                    # print(str(seq.encode("shift-jis", "ignore").hex()))
-                    # print("FUCKK")
-                    # print()
-                    # exit()
 
         end = curr
         counter += 1
@@ -108,8 +97,7 @@ def translate_table(filename):
 
 
 if __name__=="__main__":
-    text = translate("やっと休み時間か…。")["choices"][0]["text"]
-    print(text)
+    pass
     # dialog_table = create_table(config.TOKIMEKI_PATH)
     # json.dump(dialog_table, open("dialog_table.json", "w"), indent=4)
 
