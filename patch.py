@@ -19,6 +19,7 @@ import pandas as pd
 
 import utils
 import config
+import translation
 
 path = os.path.dirname(__file__)
 
@@ -207,27 +208,28 @@ def create_dialog_table(blocks):
 def translate_dialog_table(dialog_table):
     """Translates a json of all sequences in the blocks"""
     translation_path = os.path.join(path, "data/translation_seq_table.json")
-    translator = google_translator()
 
-    if os.path.isfile(translation_path):
-        with open(translation_path, "r+") as translation_fp:
-            return json.load(translation_fp)
+    # if os.path.isfile(translation_path):
+        # with open(translation_path, "r+") as translation_fp:
+            # return json.load(translation_fp)
 
 
     translation_table = {}
     with open(translation_path, "w+") as translation_fp:
         for key in tqdm(dialog_table):
-            try:
-                item = bytes.fromhex(key).decode("shift-jis", "ignore")
-                print(key)
-                text = translator.translate(item, lang_tgt="en")
-                translation_table[key] = text
-                print(text, end="\r")
+            # try:
+            print("key", key)
+            key = utils.clean_seq(key)
+            item = bytes.fromhex(key).decode("shift-jis", "ignore")
+            text = translation.translate(item)
+            print(text["choices"][0]["text"])
+            translation_table[key] = text
+            # print(text, end="\r")
 
-            except:
-                translation_table[key] = "asdf"
-                print("banned from google", end="\r")
-                continue
+            # except:
+                # translation_table[key] = "asdf"
+                # print("banned from google", end="\r")
+                # continue
 
         json.dump(translation_table, translation_fp, indent=4)
 

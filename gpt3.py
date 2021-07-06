@@ -15,3 +15,12 @@ response = openai.Completion.create(
         prompt=prompt,
         max_tokens=5
     )
+
+def translate(prompt):
+    response = openai.Completion.create(
+            engine="davinci",
+            prompt=prompt,
+            max_tokens=5
+        )
+
+    return response

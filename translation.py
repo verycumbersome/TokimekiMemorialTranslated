@@ -7,8 +7,9 @@ import os
 import json
 
 import mmap
-import hashlib
 import tqdm
+import openai
+import hashlib
 
 from google_trans_new import google_translator
 
@@ -16,6 +17,27 @@ import utils
 import config
 
 translator = google_translator()
+
+# Load your API key from an environment variable or secret management service
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
+start_sequence = "\nEnglish:"
+prompt = "Japanese: わたしは　にほんごがすこししかはなせません。\nEnglish: Unfortunately, I speak only a little Japanese..\n\nJapanese: やばい！あのジェットコースター、めっちゃたかい。\nEnglish: Oh my god! That roller coaster is super tall.\n\nJapanese: わぉ！宝くじ、1,000万円 当たった！\nEnglish: Wow! I won a lottery of 10,000,000 yen!\n\nJapanese: "
+
+def translate(seq):
+    """Uses GPT3 to translate japanese text to English"""
+    response = openai.Completion.create(
+        engine="davinci",
+        prompt=prompt + seq + start_sequence,
+        temperature=0.15,
+        max_tokens=100,
+        top_p=1,
+        frequency_penalty=0,
+        presence_penalty=0,
+        stop=["\n"]
+    )
+
+    return response
 
 
 def create_table(filename):
@@ -86,7 +108,9 @@ def translate_table(filename):
 
 
 if __name__=="__main__":
-    dialog_table = create_table(config.TOKIMEKI_PATH)
+    text = translate("やっと休み時間か…。")["choices"][0]["text"]
+    print(text)
+    # dialog_table = create_table(config.TOKIMEKI_PATH)
     # json.dump(dialog_table, open("dialog_table.json", "w"), indent=4)
 
     # translation_table = translate_table("dialog_table.json")
