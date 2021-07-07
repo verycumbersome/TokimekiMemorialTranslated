@@ -183,9 +183,9 @@ def patch_rom(blocks, translation_table):
 
             if pointer in translation_table:
                 seq = utils.encode_english(translation_table[pointer])
-                seq.append(0)
             else:
-                seq = "null"
+                seq = utils.encode_english("null")
+            seq.append(0)
 
             out[str(counter - 0xffff0000)] = seq
 
@@ -219,10 +219,6 @@ def create_translation_table(blocks):
 
                 # For each pointer in block add to dialog table
                 translation_table[key] = val["choices"][0]["text"]
-
-                break
-
-            break
 
         json.dump(translation_table, translation_fp, indent=4)
 
