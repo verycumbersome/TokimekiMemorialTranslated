@@ -35,7 +35,7 @@ class Block:
         self.table = table
         self.address = address
 
-        # Make sure the block size is correct
+        # Assert correct PS1 block size(4096 bits)
         assert len(table) % config.BLOCK_SIZE == 0, "Incorrect block table length"
 
         # Initialize class vars
@@ -59,7 +59,7 @@ class Block:
         # Extract all potential pointers from table
         tbl = [p[-6:] + "80" for p in self.table.split("80") if len(p) >= 4]
 
-        # Iterate through table while appending each pointer to a list
+        # Iterate through table and append each pointer to a list
         for ptr_text in tbl:
             ptr = int(utils.reverse_ptr(ptr_text)[2:], 16)
 
@@ -70,7 +70,7 @@ class Block:
                     "idx": ptr
                 })
 
-            # Replace all pointers in the table with NULL
+            # Remove all pointers from table
             self.table = self.table.replace(ptr_text, "00000000")
 
         self.num_pointers = len(self.pointers)
@@ -181,8 +181,11 @@ def patch_rom(blocks, translation_table):
             patched_mm.seek(location)
             patched_mm.write(new_ptr)
 
-            seq = utils.encode_english(translation_table[pointer])
-            seq.append(0)
+            if pointer in translation_table:
+                seq = utils.encode_english(translation_table[pointer])
+                seq.append(0)
+            else:
+                seq = "null"
 
             out[str(counter - 0xffff0000)] = seq
 
@@ -192,42 +195,34 @@ def patch_rom(blocks, translation_table):
     json.dump(out, ptr_tbl_fp)
 
 
-def create_dialog_table(blocks):
+def create_translation_table(blocks):
     """Creates a json of all sequences in the blocks for translation"""
-    out = {}
-    with open(os.path.join(path, "data/dialog_seq_table.json"), "w+") as seqs_fp:
-        for b in blocks:
-            for p in b.pointers.iterrows():
-                out[p[1]["seqs"]] = "test"  # For each pointer in block add to dialog table
 
-        json.dump(out, seqs_fp, indent=4)
-
-
-def translate_dialog_table(dialog_table):
-    """Translates a json of all sequences in the blocks"""
     translation_path = os.path.join(path, "data/translation_seq_table.json")
 
-    # if os.path.isfile(translation_path):
-        # with open(translation_path, "r+") as translation_fp:
-            # return json.load(translation_fp)
+    # If translation table already exists
+    if os.path.isfile(translation_path):
+        with open(translation_path, "r+") as translation_fp:
+            return json.load(translation_fp)
 
-
+    # Create new translation table
     translation_table = {}
     with open(translation_path, "w+") as translation_fp:
-        for key in tqdm(dialog_table):
-            # try:
-            print("key", key)
-            key = utils.clean_seq(key)
-            item = bytes.fromhex(key).decode("shift-jis", "ignore")
-            text = translation.translate(item)
-            print(text["choices"][0]["text"])
-            translation_table[key] = text
-            # print(text, end="\r")
+        for b in blocks:
+            for p in b.pointers.iterrows():
+                key = p[1]["seqs"]
+                val = utils.clean_seq(key)
+                val = bytes.fromhex(val).decode("shift-jis", "ignore")
+                val = translation.translate(val)
 
-            # except:
-                # translation_table[key] = "asdf"
-                # print("banned from google", end="\r")
-                # continue
+                print(val["choices"][0]["text"])
+
+                # For each pointer in block add to dialog table
+                translation_table[key] = val["choices"][0]["text"]
+
+                break
+
+            break
 
         json.dump(translation_table, translation_fp, indent=4)
 
@@ -237,12 +232,8 @@ def translate_dialog_table(dialog_table):
 if __name__ == "__main__":
     blocks = init_blocks()
 
-    create_dialog_table(blocks)
-
-    with open(os.path.join(path, "data/dialog_seq_table.json"), "r") as dialog_fp:
-        dialog_table = json.load(dialog_fp)
-        translation_table = translate_dialog_table(dialog_table)
-        patch_rom(blocks, translation_table)
+    translation_table = create_translation_table(blocks)
+    patch_rom(blocks, translation_table)
 
     # with open("test_table2.txt", "r") as test_table_fp:
         # chunk = test_table_fp.read()
