@@ -208,14 +208,14 @@ def create_translation_table(blocks):
     # Create new translation table
     translation_table = {}
     with open(translation_path, "w+") as translation_fp:
-        for b in blocks:
+        for b in tqdm(blocks, desc="Patching blocks"):
             for p in b.pointers.iterrows():
                 key = p[1]["seqs"]
                 val = utils.clean_seq(key)
                 val = bytes.fromhex(val).decode("shift-jis", "ignore")
                 val = translation.translate(val)
 
-                print(val["choices"][0]["text"])
+                # print(val["choices"][0]["text"])
 
                 # For each pointer in block add to dialog table
                 translation_table[key] = val["choices"][0]["text"]
