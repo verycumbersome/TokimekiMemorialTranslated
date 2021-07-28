@@ -21,8 +21,6 @@ import translation
 
 path = os.path.dirname(__file__)
 
-spinner = Halo(text='Creating blocks', spinner='dots')
-
 # Define globals
 rom_fp = os.open(os.path.join(path, config.BIN_PATH), os.O_RDWR)
 mm = mmap.mmap(rom_fp, 0, prot=mmap.PROT_READ)
@@ -41,7 +39,6 @@ class Block:
         # Initialize class vars
         self.seqs = []
         self.pointers = []
-        self.num_pointers = 0
 
         # Call init functions
         self.get_pointers()
@@ -73,7 +70,6 @@ class Block:
             # Remove all pointers from table
             self.table = self.table.replace(ptr_text, "00000000")
 
-        self.num_pointers = len(self.pointers)
         self.pointers = pd.DataFrame(self.pointers)
 
     def get_seqs(self):
@@ -104,7 +100,7 @@ class Block:
         self.pointers = pd.merge(self.seqs, self.pointers, on="idx")
 
 
-def init_blocks():
+def parse_ROM_blocks():
     """Parses the ROM and segments into blocks with relative pointer positions"""
 
     chunk = ""  # Chunk to append blocks to for parsing
@@ -138,7 +134,7 @@ def init_blocks():
             continue
 
         # Get amount of duplicate pointers between main chunk and currect block
-        diff = abs(len(np.unique(b.pointers["idx"])) - b.num_pointers)
+        diff = abs(len(np.unique(b.pointers["idx"])) - len(b.pointers))
         if diff > 42:
             if "seqs" not in b.pointers.columns:
                 end = table_idx
@@ -161,16 +157,15 @@ def init_blocks():
 
 
 def patch_rom(blocks, translation_table):
+    out = {}
+    out_fp = open("pointer_table.json", "w")
     patched_path = "patched_rom.bin"
 
     copyfile(config.BIN_PATH, patched_path)
-
     patched_fp = os.open(os.path.join(path, patched_path), os.O_RDWR)
     patched_mm = mmap.mmap(patched_fp, 0, prot=mmap.PROT_WRITE)
 
-    counter = 0xffff0000
-
-    out = {}
+    counter = 0xffff0000  # Counter for new pointer for translated sequence
     for block in tqdm(blocks):
         for ptr in block.pointers.iterrows():
             location = ptr[1]["ptr_location"]
@@ -185,14 +180,13 @@ def patch_rom(blocks, translation_table):
                 seq = utils.encode_english(translation_table[pointer])
             else:
                 seq = utils.encode_english("null")
-            seq.append(0)
 
+            seq.append(0)
             out[str(counter - 0xffff0000)] = seq
 
             counter += 1
 
-    ptr_tbl_fp = open("pointer_table.json", "w")
-    json.dump(out, ptr_tbl_fp)
+    json.dump(out, out_fp)
 
 
 def create_translation_table(blocks):
@@ -226,7 +220,7 @@ def create_translation_table(blocks):
 
 
 if __name__ == "__main__":
-    blocks = init_blocks()
+    blocks = parse_ROM_blocks()
 
     translation_table = create_translation_table(blocks)
     patch_rom(blocks, translation_table)
