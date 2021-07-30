@@ -13,8 +13,11 @@ import numpy as np
 from textwrap import wrap
 from google_trans_new import google_translator
 
+import config
+
 path = os.path.dirname(__file__)
 translator = google_translator()
+
 
 def clean_seq(seq):
     """handles the cleaning of a sequence to ensure correct shift-jis encoding"""
@@ -133,33 +136,35 @@ def decode_seq(seq: bytes) -> str:
 
     return("".join(enc_seq))
 
+def get_num_seqs():
+    """Returns the number of japanese sequences in the game"""
+
+    rom_fp = os.open(os.path.join(path, config.BIN_PATH), os.O_RDWR)
+    mm = mmap.mmap(rom_fp, 0, prot=mmap.PROT_READ)
+
+    end = 0
+    while True:
+        idx = mm.rfind(b"\x00", 0, end)
+
+        print(idx)
+
+        end = idx
+
 
 if __name__=="__main__":
+    get_num_seqs()
     # text = input()
+    # seq = "This is a longer sentence but the text is fucked"
 
-    # # text = "82 D3 81 5B 82 C1 81 41 94 E6 82 EA 82 BD 81 42 20 81 69 92 A9 91 81 82 AD 91 96 82 E9 82 CC 82 CD 81 41 20 8B 43 8E 9D 82 BF 82 AA 82 A2 82 A2 82 C8 82 A0 81 42 81 6A"
+    # fp = open("pointer_table.json", "w")
+    # seq = encode_english(seq)
 
-    # # print(encode_english(text))
-    # for seq in text.split(" 0 "):
-        # seq = seq.replace("47", "")
-        # seq = seq.replace(" ", "")
-        # seq = bytes.fromhex(seq)
+    # out = {
+        # "0":seq
+    # }
 
-        # seq = seq.decode("shift-jis", "ignore")
-        # # print(seq)
+    # json.dump(
+        # out,
+        # fp
+    # )
 
-        # seq = translator.translate(seq, lang_tgt="en")
-        # print(seq)
-    seq = "This is a longer sentence but the text is fucked"
-
-    fp = open("pointer_table.json", "w")
-    seq = encode_english(seq)
-
-    out = {
-        "0":seq
-    }
-
-    json.dump(
-        out,
-        fp
-    )

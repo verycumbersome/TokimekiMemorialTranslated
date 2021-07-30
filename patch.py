@@ -60,7 +60,7 @@ class Block:
         for ptr_text in tbl:
             ptr = int(utils.reverse_ptr(ptr_text)[2:], 16)
 
-            if ptr > 0x190000 and ptr < 0x19FFFF:  # Make sure pointer location is sufficiently large
+            if ptr > 0x195000 and ptr < 0x19FFFF:  # Make sure pointer location is sufficiently large
                 self.pointers.append({
                     "hex": hex(ptr),
                     "text": ptr_text,
@@ -129,27 +129,29 @@ def parse_ROM_blocks():
 
         if not len(tmp.pointers):
             end = table_idx
-            if block_counter > 24:
-                chunk = ""
+            chunk = ""
+            # if block_counter > 24:
+                # chunk = ""
             continue
 
+        # TODO figure out actual logic to segment blocks
         # Get amount of duplicate pointers between main chunk and currect block
-        diff = abs(len(np.unique(b.pointers["idx"])) - len(b.pointers))
-        if diff > 42:
-            if "seqs" not in b.pointers.columns:
-                end = table_idx
-                continue
+        # diff = abs(len(np.unique(b.pointers["idx"])) - len(b.pointers))
+        # if diff > 42:
+        if "seqs" not in b.pointers.columns:
+            end = table_idx
+            continue
 
-            b.pointers["ptr_location"] = b.pointers["text"].map(
-                lambda x: mm.find(bytes.fromhex(x), table_idx)
-            )
-            b.pointers = b.pointers[b.pointers["ptr_location"] > 0]
-            blocks.append(b)
+        b.pointers["ptr_location"] = b.pointers["text"].map(
+            lambda x: mm.find(bytes.fromhex(x), table_idx)
+        )
+        b.pointers = b.pointers[b.pointers["ptr_location"] > 0]
+        blocks.append(b)
 
-            # print(b.pointers)
+        print(b.pointers)
 
-            block_counter = 0
-            chunk = ""
+        block_counter = 0
+        chunk = ""
 
         end = table_idx
 
@@ -189,7 +191,7 @@ def patch_rom(blocks, translation_table):
     json.dump(out, out_fp)
 
 
-def create_translation_table(blocks):
+def init_translation_table(blocks):
     """Creates a json of all sequences in the blocks for translation"""
 
     translation_path = os.path.join(path, "data/translation_seq_table.json")
@@ -222,7 +224,7 @@ def create_translation_table(blocks):
 if __name__ == "__main__":
     blocks = parse_ROM_blocks()
 
-    translation_table = create_translation_table(blocks)
+    translation_table = init_translation_table(blocks)
     patch_rom(blocks, translation_table)
 
     # with open("test_table2.txt", "r") as test_table_fp:
