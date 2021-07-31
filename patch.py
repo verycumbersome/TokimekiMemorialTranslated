@@ -95,24 +95,21 @@ class Block:
         seq_idxs = np.array(self.seqs["idx"])
 
         # Find optimal offset to match most amount of pointers to seqs
-        self.offset = np.bincount(np.ravel(ptr_idxs[:, None] - seq_idxs[None, :]))
-
-        print(self.offset.max() / len(self.seqs))
-
-        self.offset = self.offset.argmax()
-
+        offset = np.bincount(np.ravel(ptr_idxs[:, None] - seq_idxs[None, :]))
+        offset = offset.argmax()
 
         # Apply best offset to the sequence indices and merge given offset
-        self.seqs["idx"] += self.offset
+        self.seqs["idx"] += offset
         self.pointers = pd.merge(self.seqs, self.pointers, on="idx")
 
 
-def parse_ROM_blocks():
+def parse_rom():
     """Parses the ROM and segments into blocks with relative pointer positions"""
+
+    total = 0
 
     chunk = ""  # Chunk to append blocks to for parsing
     blocks = []
-    chunk_counter = 0
     end = config.MEM_MAX  # Iterator for memory max
     curr = 0
 
@@ -127,20 +124,12 @@ def parse_ROM_blocks():
         table = table[config.HEADER_SIZE:-config.FOOTER_SIZE]  # Remove table header/footer info
 
         chunk = table + chunk
-        chunk_counter += 1
-
-        # tmp = Block(table, 0)
-        # if not (len(tmp.pointers) or len(tmp.seqs)):
-            # end = table_idx
-            # if chunk_counter > 8:
-                # chunk = ""
-            # continue
 
         block = Block(chunk, table_idx + 24)
 
         if not (len(block.pointers) and len(block.seqs)):
+            curr = len(block.pointers)
             end = table_idx
-            # if chunk_counter > 8:
             chunk = ""
             continue
 
@@ -150,7 +139,8 @@ def parse_ROM_blocks():
 
         # TODO figure out actual logic to segment blocks
         # Get amount of duplicate pointers between main chunk and currect block
-        if curr == len(block.pointers):
+        print(curr)
+        if curr <= len(block.pointers):
             if "seqs" not in block.pointers.columns:
                 end = table_idx
                 continue
@@ -162,11 +152,14 @@ def parse_ROM_blocks():
             blocks.append(block)
 
             print(block.pointers)
+            print("pointers mapped", total)
 
-            chunk_counter = 0
+            total += len(block.pointers)
+
             chunk = ""
 
-        curr = len(block.pointers)
+        # curr = len(block.pointers)
+        curr = len(block.pointers) / len(block.seqs)
         end = table_idx
 
     return blocks
@@ -236,7 +229,7 @@ def init_translation_table(blocks):
 
 
 if __name__ == "__main__":
-    blocks = parse_ROM_blocks()
+    blocks = parse_rom()
 
     translation_table = init_translation_table(blocks)
     patch_rom(blocks, translation_table)
