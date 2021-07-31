@@ -100,63 +100,6 @@ class Block:
         self.pointers = pd.merge(self.seqs, self.pointers, on="idx")
 
 
-# def parse_ROM_blocks():
-    # """Parses the ROM and segments into blocks with relative pointer positions"""
-
-    # chunk = ""  # Chunk to append blocks to for parsing
-    # blocks = []
-    # block_counter = 0
-    # end = config.MEM_MAX  # Iterator for memory max
-
-    # while True:
-        # table_idx = mm.rfind(config.TABLE_SEP, config.MEM_MIN, end)
-
-        # if table_idx < 1:
-            # break
-
-        # table = mm[table_idx:end].hex()
-        # table = table[config.HEADER_SIZE:-config.FOOTER_SIZE]  # Remove table header/footer info
-
-        # chunk = table + chunk
-
-        # b = Block(chunk, table_idx + 24)
-
-        # block_counter += 1
-
-        # tmp = Block(table, 0)
-
-        # print(hex(table_idx))
-
-        # if not len(tmp.pointers):
-            # end = table_idx
-            # if block_counter > 24:
-                # chunk = ""
-            # continue
-
-        # # TODO figure out actual logic to segment blocks
-        # # Get amount of duplicate pointers between main chunk and currect block
-        # diff = abs(len(np.unique(b.pointers["idx"])) - len(b.pointers))
-        # if diff > 42:
-            # if "seqs" not in b.pointers.columns:
-                # end = table_idx
-                # continue
-
-            # b.pointers["ptr_location"] = b.pointers["text"].map(
-                # lambda x: mm.find(bytes.fromhex(x), table_idx)
-            # )
-            # b.pointers = b.pointers[b.pointers["ptr_location"] > 0]
-            # blocks.append(b)
-
-            # print(b.pointers)
-
-            # block_counter = 0
-            # chunk = ""
-
-        # end = table_idx
-
-    # return blocks
-
-
 def parse_ROM_blocks():
     """Parses the ROM and segments into blocks with relative pointer positions"""
 
@@ -178,15 +121,15 @@ def parse_ROM_blocks():
 
         chunk = table + chunk
 
-        block = Block(chunk, table_idx + 24)
         tmp = Block(table, 0)
-
-        block_counter += 1
         if not (len(tmp.pointers) or len(tmp.seqs)):
             end = table_idx
             if block_counter > 24:
                 chunk = ""
             continue
+
+        block = Block(chunk, table_idx + 24)
+        block_counter += 1
 
         # TODO figure out actual logic to segment blocks
         # Get amount of duplicate pointers between main chunk and currect block
@@ -233,7 +176,6 @@ def patch_rom(blocks, translation_table):
             patched_mm.write(new_ptr)
 
             if pointer in translation_table:
-                print(translation_table[pointer])
                 seq = utils.encode_english(translation_table[pointer])
             else:
                 seq = utils.encode_english("null")

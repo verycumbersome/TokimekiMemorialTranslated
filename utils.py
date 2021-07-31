@@ -87,7 +87,12 @@ def encode_english(seq: str) -> list:
         else:
             enc.append(int(c, 16))
 
-        c = bytes.fromhex(c).decode("shift-jis", "ignore")
+        # Handle invalid characters
+        try:
+            c = bytes.fromhex(c).decode("shift-jis", "ignore")
+        except ValueError:
+            pass
+
 
         out += c
 
