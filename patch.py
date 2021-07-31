@@ -43,10 +43,7 @@ class Block:
         # Call init functions
         self.get_pointers()
         self.get_seqs()
-
-        if len(self.pointers) and len(self.seqs):
-            self.get_offset()
-            self.create_ptr_table()
+        self.create_ptr_table()
 
     def get_pointers(self):
         """Get a list of all pointers in a block within a given range"""
@@ -60,7 +57,8 @@ class Block:
         for ptr_text in tbl:
             ptr = int(utils.reverse_ptr(ptr_text)[2:], 16)
 
-            if ptr > 0x195000 and ptr < 0x19FFFF:  # Make sure pointer location is sufficiently large
+            # if ptr > 0x195000 and ptr < 0x19FFFF:  # Make sure pointer location is correct range
+            if ptr > 0x100000:  # Make sure pointer location is correct range
                 self.pointers.append({
                     "hex": hex(ptr),
                     "text": ptr_text,
@@ -71,6 +69,7 @@ class Block:
             self.table = self.table.replace(ptr_text, "00000000")
 
         self.pointers = pd.DataFrame(self.pointers)
+
 
     def get_seqs(self):
         """Get sequences and indices from table in ROM"""
@@ -86,15 +85,23 @@ class Block:
         self.seqs = self.seqs.drop_duplicates(subset=["idx"])
         self.seqs["seq_location"] = self.seqs["idx"] + self.address
 
-    def get_offset(self):
+    def create_ptr_table(self):
         """Find best offset to match max amount of pointers to sequences"""
+
+        if not (len(self.pointers) and len(self.seqs)):
+            return
 
         ptr_idxs = np.array(self.pointers["idx"])
         seq_idxs = np.array(self.seqs["idx"])
 
-        self.offset = np.bincount(np.ravel(ptr_idxs[:, None] - seq_idxs[None, :])).argmax()
+        # Find optimal offset to match most amount of pointers to seqs
+        self.offset = np.bincount(np.ravel(ptr_idxs[:, None] - seq_idxs[None, :]))
 
-    def create_ptr_table(self):
+        print(self.offset.max() / len(self.seqs))
+
+        self.offset = self.offset.argmax()
+
+
         # Apply best offset to the sequence indices and merge given offset
         self.seqs["idx"] += self.offset
         self.pointers = pd.merge(self.seqs, self.pointers, on="idx")
@@ -105,7 +112,7 @@ def parse_ROM_blocks():
 
     chunk = ""  # Chunk to append blocks to for parsing
     blocks = []
-    block_counter = 0
+    chunk_counter = 0
     end = config.MEM_MAX  # Iterator for memory max
     curr = 0
 
@@ -120,16 +127,26 @@ def parse_ROM_blocks():
         table = table[config.HEADER_SIZE:-config.FOOTER_SIZE]  # Remove table header/footer info
 
         chunk = table + chunk
+        chunk_counter += 1
 
-        tmp = Block(table, 0)
-        if not (len(tmp.pointers) or len(tmp.seqs)):
-            end = table_idx
-            if block_counter > 24:
-                chunk = ""
-            continue
+        # tmp = Block(table, 0)
+        # if not (len(tmp.pointers) or len(tmp.seqs)):
+            # end = table_idx
+            # if chunk_counter > 8:
+                # chunk = ""
+            # continue
 
         block = Block(chunk, table_idx + 24)
-        block_counter += 1
+
+        if not (len(block.pointers) and len(block.seqs)):
+            end = table_idx
+            # if chunk_counter > 8:
+            chunk = ""
+            continue
+
+        print(len(block.pointers), len(block.seqs))
+        print("chunk size:", len(chunk))
+        print()
 
         # TODO figure out actual logic to segment blocks
         # Get amount of duplicate pointers between main chunk and currect block
@@ -146,7 +163,7 @@ def parse_ROM_blocks():
 
             print(block.pointers)
 
-            block_counter = 0
+            chunk_counter = 0
             chunk = ""
 
         curr = len(block.pointers)
