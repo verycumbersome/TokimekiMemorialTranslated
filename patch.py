@@ -106,12 +106,11 @@ class Block:
 def parse_rom():
     """Parses the ROM and segments into blocks with relative pointer positions"""
 
-    total = 0
-
     chunk = ""  # Chunk to append blocks to for parsing
     blocks = []
     end = config.MEM_MAX  # Iterator for memory max
     curr = 0
+    total = 0
 
     while True:
         table_idx = mm.rfind(config.TABLE_SEP, config.MEM_MIN, end)
@@ -122,25 +121,43 @@ def parse_rom():
 
         table = mm[table_idx:end].hex()
         table = table[config.HEADER_SIZE:-config.FOOTER_SIZE]  # Remove table header/footer info
-
         chunk = table + chunk
 
         block = Block(chunk, table_idx + 24)
 
         if not (len(block.pointers) and len(block.seqs)):
-            curr = len(block.pointers)
             end = table_idx
             chunk = ""
+            curr = 0
             continue
 
-        print(len(block.pointers), len(block.seqs))
-        print("chunk size:", len(chunk))
-        print()
+        # Calculate the block's likelihood of being contigious in memory
+        eps = 1e-5
+        num_ptrs = len(block.pointers)
+        num_seqs = len(block.seqs)
+        num_blocks = len(chunk) / config.BLOCK_SIZE
 
-        # TODO figure out actual logic to segment blocks
-        # Get amount of duplicate pointers between main chunk and currect block
-        print(curr)
-        if curr <= len(block.pointers):
+        # Ratio of seqs to pointers with exponential falloff: (p/(s+e) - 0.4^n)
+        if num_ptrs > 10 and num_seqs > 10:
+            tmp = (num_ptrs / (num_seqs + eps))
+        else:
+            tmp = (num_ptrs / (num_seqs + eps)) - (0.4 ** num_blocks)
+
+        # print("chunk size:", num_blocks)
+        # print("Curr", curr)
+        # print(num_ptrs, num_seqs)
+        # print()
+
+        # Calculate the location of mapped memory pointers in ROM
+        if tmp <= curr:
+            if curr < 0.65:
+                end = table_idx
+                chunk = ""
+                curr = 0
+                continue
+
+            block = Block(chunk.replace(table, ""), table_idx - config.BLOCK_SIZE + 24)
+
             if "seqs" not in block.pointers.columns:
                 end = table_idx
                 continue
@@ -151,15 +168,18 @@ def parse_rom():
             block.pointers = block.pointers[block.pointers["ptr_location"] > 0]
             blocks.append(block)
 
-            print(block.pointers)
+            print("MINTED BLOCK")
+            print(len(block.pointers), len(block.seqs))
             print("pointers mapped", total)
+            print(block.pointers)
+            print()
 
             total += len(block.pointers)
 
             chunk = ""
+            curr = 0
 
-        # curr = len(block.pointers)
-        curr = len(block.pointers) / len(block.seqs)
+        curr = tmp
         end = table_idx
 
     return blocks

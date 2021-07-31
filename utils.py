@@ -10,13 +10,9 @@ import json
 
 import numpy as np
 
-from textwrap import wrap
-from google_trans_new import google_translator
-
 import config
 
 path = os.path.dirname(__file__)
-translator = google_translator()
 
 
 def clean_seq(seq):
@@ -49,6 +45,7 @@ def encode_english(seq: str) -> list:
     """encodes an english sequence into equivilant english shift-jis chars"""
     enc = []
     out = []
+    offset = 0
     counter = 0
     return_flag = False
 
@@ -141,7 +138,8 @@ def decode_seq(seq: bytes) -> str:
 
     return("".join(enc_seq))
 
-def get_num_seqs():
+
+def get_num_seqs() -> int:
     """Returns the number of japanese sequences in the game"""
 
     rom_fp = os.open(os.path.join(path, config.BIN_PATH), os.O_RDWR)
