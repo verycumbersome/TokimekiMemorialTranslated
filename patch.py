@@ -34,7 +34,7 @@ class Block:
         self.address = address
 
         # Assert correct PS1 block size(4096 bits)
-        assert len(table) % config.BLOCK_SIZE == 0, "Incorrect block table length"
+        assert len(table) % config.BLOCK_SIZE == 0, "Incorrect block table length" + str(len(table))
 
         # Initialize class vars
         self.seqs = []
@@ -57,8 +57,8 @@ class Block:
         for ptr_text in tbl:
             ptr = int(utils.reverse_ptr(ptr_text)[2:], 16)
 
-            # if ptr > 0x195000 and ptr < 0x19FFFF:  # Make sure pointer location is correct range
-            if ptr > 0x100000:  # Make sure pointer location is correct range
+            if ptr > 0x195000 and ptr < 0x19FFFF:  # Make sure pointer location is correct range
+            # if ptr > 0x100000:  # Make sure pointer location is correct range
                 self.pointers.append({
                     "hex": hex(ptr),
                     "text": ptr_text,
@@ -69,6 +69,7 @@ class Block:
             self.table = self.table.replace(ptr_text, "00000000")
 
         self.pointers = pd.DataFrame(self.pointers)
+        self.pointers = self.pointers.drop_duplicates(subset=["hex"])
 
 
     def get_seqs(self):
@@ -125,7 +126,7 @@ def parse_rom():
 
         block = Block(chunk, table_idx + 24)
 
-        if not (len(block.pointers) and len(block.seqs)):
+        if not (len(block.pointers) or len(block.seqs)):
             end = table_idx
             chunk = ""
             curr = 0
@@ -143,22 +144,19 @@ def parse_rom():
         else:
             tmp = (num_ptrs / (num_seqs + eps)) - (0.4 ** num_blocks)
 
-        # print("chunk size:", num_blocks)
-        # print("Curr", curr)
-        # print(num_ptrs, num_seqs)
-        # print()
-
         # Calculate the location of mapped memory pointers in ROM
         if tmp <= curr:
-            if curr < 0.65:
+            # block = Block(chunk.replace(table, ""), table_idx - config.BLOCK_SIZE + 24)
+
+            # if curr < 0.75 or len(block.pointers) < 8:
+            if len(block.pointers) < 8:
                 end = table_idx
                 chunk = ""
                 curr = 0
                 continue
 
-            block = Block(chunk.replace(table, ""), table_idx - config.BLOCK_SIZE + 24)
-
             if "seqs" not in block.pointers.columns:
+                curr = tmp
                 end = table_idx
                 continue
 
@@ -175,9 +173,10 @@ def parse_rom():
             print()
 
             total += len(block.pointers)
-
             chunk = ""
             curr = 0
+            end = table_idx
+            continue
 
         curr = tmp
         end = table_idx

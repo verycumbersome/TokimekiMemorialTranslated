@@ -90,7 +90,6 @@ def encode_english(seq: str) -> list:
         except ValueError:
             pass
 
-
         out += c
 
     # out = "".join(out)
