@@ -144,9 +144,12 @@ def parse_rom():
         else:
             tmp = (num_ptrs / (num_seqs + eps)) - (0.4 ** num_blocks)
 
+        # TODO figure out probabilities associated with each sequence to 
+        # assign each to the most likely pointer
+
         # Calculate the location of mapped memory pointers in ROM
         if tmp <= curr:
-            # block = Block(chunk.replace(table, ""), table_idx - config.BLOCK_SIZE + 24)
+            block = Block(chunk.replace(table, ""), table_idx - config.BLOCK_SIZE + 24)
 
             # if curr < 0.75 or len(block.pointers) < 8:
             if len(block.pointers) < 8:
