@@ -57,8 +57,8 @@ class Block:
         for ptr_text in tbl:
             ptr = int(utils.reverse_ptr(ptr_text)[2:], 16)
 
-            if ptr > 0x195000 and ptr < 0x19FFFF:  # Make sure pointer location is correct range
-            # if ptr > 0x100000:  # Make sure pointer location is correct range
+            # if ptr > 0x195000 and ptr < 0x19FFFF:  # Make sure pointer location is correct range
+            if ptr > 0x100000:  # Make sure pointer location is correct range
                 self.pointers.append({
                     "hex": hex(ptr),
                     "text": ptr_text,
