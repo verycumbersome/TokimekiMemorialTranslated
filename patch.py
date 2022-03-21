@@ -20,9 +20,10 @@ import config
 import translation
 
 path = os.path.dirname(__file__)
+rom_path = utils.get_rom_path()
 
 # Define globals
-rom_fp = os.open(os.path.join(path, config.BIN_PATH), os.O_RDWR)
+rom_fp = os.open(os.path.join(path, rom_path), os.O_RDWR)
 mm = mmap.mmap(rom_fp, 0, prot=mmap.PROT_READ)
 
 
@@ -192,7 +193,7 @@ def patch_rom(blocks, translation_table):
     out_fp = open("pointer_table.json", "w")
     patched_path = "patched_rom.bin"
 
-    copyfile(config.BIN_PATH, patched_path)
+    copyfile(rom_path, patched_path)
     patched_fp = os.open(os.path.join(path, patched_path), os.O_RDWR)
     patched_mm = mmap.mmap(patched_fp, 0, prot=mmap.PROT_WRITE)
 

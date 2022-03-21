@@ -15,6 +15,19 @@ import config
 path = os.path.dirname(__file__)
 
 
+def get_rom_path():
+    """Gets the path of the rom to patch"""
+    rom_paths = os.listdir(os.path.join(path, "roms"))
+
+    print("Which ROM would you like to patch?")
+    for i, p in enumerate(rom_paths):
+        print("{}. {}".format(i, p))
+    rom_path = rom_paths[int(input())]
+    rom_path = os.path.join(path, "roms", rom_path)
+
+    return rom_path
+
+
 def clean_seq(seq):
     """handles the cleaning of a sequence to ensure correct shift-jis encoding"""
     seq = seq[:len(seq) - (len(seq) % 2)] # If seq is incorrect number of bytes

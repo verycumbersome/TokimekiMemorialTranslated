@@ -4,7 +4,7 @@ HEADER_SIZE = 48
 BLOCK_SIZE = 4096
 
 TABLE_SEP = b"\x00\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\x00"
-BIN_PATH = "/home/matthew/.local/share/avocado/iso/Tokimeki Memorial - Forever with You (Japan)/Tokimeki Memorial - Forever with You (Japan) (Track 1).bin"
+BIN_PATH = "/home/mattjordan/Code/TokimekiMemorialTranslated/rom/Tokimeki Memorial - Forever with You (Japan) (PlayStation the Best) (Track 1).bin"
 
 # MEM_MIN = 0x3000000
 # MEM_MAX = 0x6000000
