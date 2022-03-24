@@ -32,7 +32,7 @@ translator = google_translator()
 
 
 def main():
-    p = subprocess.Popen(["./build/release_x64/avocado"],
+    p = subprocess.Popen(["./build/release_x64/avocado.app"],
                          stdout=subprocess.PIPE,
                          cwd="./Avocado")
 

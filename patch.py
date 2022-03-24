@@ -46,6 +46,22 @@ class Block:
         self.get_seqs()
         self.create_ptr_table()
 
+    def __repr__(self):
+        print("[---------------------------------------------------------------------------]")
+        print("[---------------------------------------------------------------------------]")
+        print("[---------------------------------NEW BLOCK---------------------------------]")
+        print("[---------------------------------------------------------------------------]")
+        print("[---------------------------------------------------------------------------]")
+        print("Address: {}".format(hex(self.address)))
+        print("Num Seqs: {}".format(len(self.seqs)))
+        print("Num Pointers: {}".format(len(self.pointers)))
+        print("Pointers: ")
+        print(self.pointers)
+        print("Sequences: ")
+        print(self.seqs)
+
+        return("\n")
+
     def get_pointers(self):
         """Get a list of all pointers in a block within a given range"""
 
@@ -57,6 +73,7 @@ class Block:
         # Iterate through table and append each pointer to a list
         for ptr_text in tbl:
             ptr = int(utils.reverse_ptr(ptr_text)[2:], 16)
+            # print(hex(ptr))
 
             # if ptr > 0x195000 and ptr < 0x19FFFF:  # Make sure pointer location is correct range
             if ptr > 0x100000:  # Make sure pointer location is correct range
@@ -85,7 +102,9 @@ class Block:
 
         self.seqs = pd.DataFrame(self.seqs, columns=["idx", "seqs"])
         self.seqs = self.seqs.drop_duplicates(subset=["idx"])
-        self.seqs["seq_location"] = self.seqs["idx"] + self.address
+        self.seqs["seq_location"] = (self.seqs["idx"] + self.address).apply(hex)
+        print(self.seqs)
+        # self.seqs["seq_location"] = self.seqs["seq_location"].apply(hex)
 
     def create_ptr_table(self):
         """Find best offset to match max amount of pointers to sequences"""
@@ -116,16 +135,19 @@ def parse_rom():
 
     while True:
         table_idx = mm.rfind(config.TABLE_SEP, config.MEM_MIN, end)
-        print(hex(table_idx))
+        # print(hex(table_idx))
 
         if table_idx < 1:
             break
 
         table = mm[table_idx:end].hex()
         table = table[config.HEADER_SIZE:-config.FOOTER_SIZE]  # Remove table header/footer info
-        chunk = table + chunk
+        # chunk = table + chunk
 
-        block = Block(chunk, table_idx + 24)
+        # block = Block(chunk, table_idx + 24)
+        block = Block(table, table_idx + 24)
+
+        # print(block)
 
         if not (len(block.pointers) or len(block.seqs)):
             end = table_idx

@@ -16,9 +16,15 @@ from google_trans_new import google_translator
 import utils
 import config
 
-translator = google_translator()
 
+# Translation
+translator = google_translator()
 openai.api_key = os.getenv("OPENAI_API_KEY")
+
+# Path
+path = os.path.dirname(__file__)
+rom_path = utils.get_rom_path()
+
 
 def translate(seq):
     """Uses GPT3 to translate japanese text to English"""
@@ -38,44 +44,58 @@ def translate(seq):
 
 def create_table(filename):
     """Returns a translation table from a bin file"""
+    table = {}
+
     f_ptr = os.open(filename, os.O_RDWR)
     mm = mmap.mmap(f_ptr, 0, prot=mmap.PROT_READ)
 
-    table = {}
-    end = per_idx = qst_idx = config.MEM_MAX
-    pbar = tqdm.tqdm(total=len(mm))
+    start = 0
+    while True:
+        table_idx = mm.find(config.TABLE_SEP, start, len(mm))
+        curr = mm.find(config.TABLE_SEP, table_idx+config.BLOCK_SIZE, len(mm))
 
-    #TODO make sentence search better
-    counter = 0
-    while (per_idx > 1 and qst_idx > 1):
-        per_idx = mm.rfind(b"\x81\x42", config.MEM_MIN, end)  # Period
-        qst_idx = mm.rfind(b"\x81\x48", config.MEM_MIN, end)  # Question mark
+        table = mm[table_idx:curr]
+        table = table[config.HEADER_SIZE:-config.FOOTER_SIZE]  # Remove table header/footer info
+        table = table.split(b"\x00\x00")
 
-        curr = mm.rfind(b"\x00", config.MEM_MIN, max(per_idx, qst_idx))  # null separator
-        curr = max(mm.rfind(b"\x71\x1A", 0, end), curr)  # NULL separator
+        for seq in table:
+            if (utils.check_validity(seq)):
+                print(utils.decode_seq(seq))
 
-        if ((end - curr) < 300):
-            seq = mm[curr:end]  # Sentence
-            seq = utils.decode_seq(seq).strip()
+        if table_idx < 0:
+            break
 
-            h_key = hashlib.sha224(seq.encode("utf8")).hexdigest()
-            if (utils.check_validity(seq) > 0.7) and (h_key not in table):
-                table[h_key] = {
-                    "seq":seq,
-                    "addr":hex(curr)
-                }
+        start = curr
 
-                print("SEQ:",seq)
-                print()
-                print(utils.check_validity(seq))
-
-        end = curr
-        counter += 1
-        pbar.update(counter)
-
-    pbar.close()
-    print("Table length:", len(table))
     return table
+
+    # while null_idx > 1:
+        # null_idx = mm.find(b"\x00", beg, config.MEM_MAX)  # Null sep
+        # curr = mm.find(b"\x00", null_idx, config.MEM_MAX)  # Null sep
+        # print(curr)
+        # # curr = max(mm.rfind(b"\x71\x1A", 0, end), curr)  # NULL separator
+
+        # seq = mm[beg:curr]  # Sentence
+        # seq = utils.decode_seq(seq).strip()
+
+        # print(seq)
+
+        # h_key = hashlib.sha224(seq.encode("utf8")).hexdigest()
+        # # if (utils.check_validity(seq) > 0.7) and (h_key not in table):
+            # # table[h_key] = {
+                # # "seq":seq,
+                # # "addr":hex(curr)
+            # # }
+
+            # # print("SEQ:",seq)
+            # # print()
+            # # print(utils.check_validity(seq))
+
+        # end = curr
+        # counter += 1
+
+    # print("Table length:", len(table))
+    # return table
 
 
 def translate_table(filename):
@@ -97,8 +117,7 @@ def translate_table(filename):
 
 
 if __name__=="__main__":
-    pass
-    # dialog_table = create_table(config.TOKIMEKI_PATH)
+    dialog_table = create_table(rom_path)
     # json.dump(dialog_table, open("dialog_table.json", "w"), indent=4)
 
     # translation_table = translate_table("dialog_table.json")

@@ -111,16 +111,16 @@ def encode_english(seq: str) -> list:
     return enc
 
 
-def check_validity(seq: str) -> bool:
+def check_validity(bseq: bytes) -> bool:
     """Returns true if a sequence is valid given a set of criteria"""
-    seq = seq.replace("20", "")
+    seq = bseq.hex()
+    # seq = seq.replace("20", "")
 
     jis_chars = 0
     for c in [seq[i:i+4] for i in range(0, len(seq), 4)]:
         enc_char = int(c, 16)
         if 0x8140 < enc_char < 0x9FFC:
             jis_chars += 1
-
 
     # Conditions for being valid sequence for pointer to point to
     if not len(seq):
@@ -135,6 +135,7 @@ def check_validity(seq: str) -> bool:
     if "80" in seq:
         return False
 
+
     return True
 
 
@@ -144,9 +145,9 @@ def decode_seq(seq: bytes) -> str:
     seq = max(seq.split(b"\x00"), key=len)
 
     enc_seq = []
-    for s in re.split(b'(\x81\x42|\x81\x48|\x20)', seq):
+    for s in re.split(b'(\x81\x42|\x81\x48)', seq):
         if len(s) >= 2:
-            enc_seq.append(s[len(s) % 2:].decode("shift-jis", "ignore"))
+            enc_seq.append(s[len(s) % 4:].decode("shift-jis", "ignore"))
 
     return("".join(enc_seq))
 
