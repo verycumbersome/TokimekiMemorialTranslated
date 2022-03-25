@@ -111,30 +111,36 @@ def encode_english(seq: str) -> list:
     return enc
 
 
+#TODO Setup nagisa to validate japanese words
 def check_validity(bseq: bytes) -> bool:
     """Returns true if a sequence is valid given a set of criteria"""
-    seq = bseq.hex()
-    # seq = seq.replace("20", "")
 
+    seq = bseq.hex().replace("00", "")
+
+    # Check percentage of plausible dialog characters in seq
     jis_chars = 0
     for c in [seq[i:i+4] for i in range(0, len(seq), 4)]:
         enc_char = int(c, 16)
-        if 0x8140 < enc_char < 0x9FFC:
+        if 0x829E < enc_char < 0x839E: # Kana character
             jis_chars += 1
+
+    if jis_chars < 8:
+        return False
+    if any(x in seq for x in ["8142", "8148", "8149"]):
+        jis_chars += 10
 
     # Conditions for being valid sequence for pointer to point to
     if not len(seq):
         return False
-
-    if (jis_chars / (len(seq) * 0.25) <= 0.7):
+    if (jis_chars / (len(seq) * 0.25) <= 0.6): # Not enough valid chars
+        return False
+    if "80" in seq: # Has a pointer
         return False
 
-    if len(seq) <= 8:
-        return False
-
-    if "80" in seq:
-        return False
-
+    # print(jis_chars)
+    # print(seq)
+    # bseq = decode_seq(bseq).strip()
+    # print(bseq)
 
     return True
 
@@ -142,14 +148,18 @@ def check_validity(bseq: bytes) -> bool:
 def decode_seq(seq: bytes) -> str:
     """Encodes hex string into shift-jis ascii string"""
     # seq = seq[len(seq) % 4:]
-    seq = max(seq.split(b"\x00"), key=len)
+    # seq = max(seq.split(b"\x00"), key=len)
 
-    enc_seq = []
-    for s in re.split(b'(\x81\x42|\x81\x48)', seq):
-        if len(s) >= 2:
-            enc_seq.append(s[len(s) % 4:].decode("shift-jis", "ignore"))
+    out = (seq.decode("shift-jis", "ignore"))
+    # enc_seq = []
+    # for s in re.split(b'(\x81\x42|\x81\x48)', seq):
+        # if len(s) >= 2:
+            # enc_seq.append(s[len(s) % 4:].decode("shift-jis", "ignore"))
 
-    return("".join(enc_seq))
+    # out = "".join(enc_seq)
+    # out = out.strip()
+
+    return out
 
 
 def get_num_seqs() -> int:

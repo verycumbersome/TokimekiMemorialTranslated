@@ -103,8 +103,6 @@ class Block:
         self.seqs = pd.DataFrame(self.seqs, columns=["idx", "seqs"])
         self.seqs = self.seqs.drop_duplicates(subset=["idx"])
         self.seqs["seq_location"] = (self.seqs["idx"] + self.address).apply(hex)
-        print(self.seqs)
-        # self.seqs["seq_location"] = self.seqs["seq_location"].apply(hex)
 
     def create_ptr_table(self):
         """Find best offset to match max amount of pointers to sequences"""

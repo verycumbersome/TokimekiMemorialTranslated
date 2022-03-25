@@ -58,9 +58,11 @@ def create_table(filename):
         table = table[config.HEADER_SIZE:-config.FOOTER_SIZE]  # Remove table header/footer info
         table = table.split(b"\x00\x00")
 
+
         for seq in table:
             if (utils.check_validity(seq)):
-                print(utils.decode_seq(seq))
+                print(hex(table_idx))
+                # print(utils.decode_seq(seq))
 
         if table_idx < 0:
             break
