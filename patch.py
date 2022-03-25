@@ -83,22 +83,29 @@ class Block:
 
         self.pointers = pd.DataFrame(self.pointers)
         self.pointers = self.pointers.drop_duplicates(subset=["hex"])
-        print(self.pointers)
-
 
     def get_seqs(self):
         """Get sequences and indices from table in ROM"""
 
+        # print(utils.check_validity("82bb82ea82b682e18142"))
+        # exit()
+
         self.seqs = []
         for seq in self.table.split("00"):
-            seq = seq.lstrip("0")
+            seq = seq.replace("00", "")
+
+            # print(seq)
 
             if utils.check_validity(seq):
+                # print(self.table.index(seq))
                 self.seqs.append((self.table.index(seq) // 2, seq))
 
+        # print(self.table)
+        # print(self.seqs)
+        # exit()
         self.seqs = pd.DataFrame(self.seqs, columns=["idx", "seqs"])
         self.seqs = self.seqs.drop_duplicates(subset=["idx"])
-        self.seqs["seq_location"] = (self.seqs["idx"] + self.address).apply(hex)
+        self.seqs["seq_location"] = ((self.seqs["idx"] * 2) + self.address).apply(hex)
 
     def create_ptr_table(self):
         """Find best offset to match max amount of pointers to sequences"""
@@ -132,7 +139,6 @@ def parse_rom(rom_path):
     total = 0
     while True:
         table_idx = mm.rfind(config.TABLE_SEP, config.MEM_MIN, end)
-        print(hex(table_idx))
 
         if table_idx < 1:
             break
@@ -141,9 +147,9 @@ def parse_rom(rom_path):
         table = table[config.HEADER_SIZE:-config.FOOTER_SIZE]  # Remove table header/footer info
         chunk = table + chunk
 
+        print()
+        print(hex(table_idx))
         block = Block(chunk, table_idx + 24)
-
-        # print(block)
 
         if not (len(block.pointers) or len(block.seqs)):
             end = table_idx
@@ -167,8 +173,11 @@ def parse_rom(rom_path):
         # assign each to the most likely pointer
 
         # Calculate the location of mapped memory pointers in ROM
+        counter = 0
         if tmp <= curr:
-            block = Block(chunk.replace(table, ""), table_idx - config.BLOCK_SIZE + 24)
+            # block = Block(chunk.replace(table, ""), table_idx - config.BLOCK_SIZE + 24)
+            block = Block(chunk.replace(table, ""), table_idx)
+            # block = Block(chunk.replace(table, ""), table_idx - 136)
 
             # if curr < 0.75 or len(block.pointers) < 8:
             if len(block.pointers) < 8:
@@ -198,6 +207,7 @@ def parse_rom(rom_path):
             chunk = ""
             curr = 0
             end = table_idx
+            counter += 1
             continue
 
         curr = tmp

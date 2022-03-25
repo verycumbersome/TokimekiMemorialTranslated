@@ -117,19 +117,37 @@ def encode_english(seq: str) -> list:
 
     return enc
 
+def get_seq_offset(seq):
+    """Finds the most probably starting character for a dialog sequence"""
+    offset = 0
+    jis_chars = 0
+    for off in range(4):
+        tmp = seq[off:]
+        valid_chars = 0
+        for c in [tmp[i:i+4] for i in range(0, len(tmp), 4)]:
+            enc_char = int(c, 16)
+            if 0x829E < enc_char < 0x839E: # Kana character
+                valid_chars += 1
+        if valid_chars > jis_chars: # Finds the best offset to align the sequence character search correctly
+            offset = off
+            jis_chars = valid_chars
+    seq = seq[offset:]
+
+    return seq, jis_chars
+
 
 #TODO Setup nagisa to validate japanese words
-def check_validity(bseq: bytes) -> bool:
+def check_validity(seq: Any) -> bool:
     """Returns true if a sequence is valid given a set of criteria"""
 
-    seq = bseq.hex().replace("00", "")
+    if type(seq) == bytes:
+        seq = seq.hex().replace("00", "")
 
     # Check percentage of plausible dialog characters in seq
-    jis_chars = 0
-    for c in [seq[i:i+4] for i in range(0, len(seq), 4)]:
-        enc_char = int(c, 16)
-        if 0x829E < enc_char < 0x839E: # Kana character
-            jis_chars += 1
+    seq, jis_chars = get_seq_offset(seq)
+
+    if (jis_chars == len(seq) // 5) and len(seq) >= 4:
+        return True
 
     if jis_chars < 8:
         return False
