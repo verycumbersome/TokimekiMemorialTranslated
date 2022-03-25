@@ -19,12 +19,8 @@ import utils
 import config
 import translation
 
+# Globals
 path = os.path.dirname(__file__)
-rom_path = utils.get_rom_path()
-
-# Define globals
-rom_fp = os.open(os.path.join(path, rom_path), os.O_RDWR)
-mm = mmap.mmap(rom_fp, 0, prot=mmap.PROT_READ)
 
 
 class Block:
@@ -73,7 +69,6 @@ class Block:
         # Iterate through table and append each pointer to a list
         for ptr_text in tbl:
             ptr = int(utils.reverse_ptr(ptr_text)[2:], 16)
-            # print(hex(ptr))
 
             # if ptr > 0x195000 and ptr < 0x19FFFF:  # Make sure pointer location is correct range
             if ptr > 0x100000:  # Make sure pointer location is correct range
@@ -88,6 +83,7 @@ class Block:
 
         self.pointers = pd.DataFrame(self.pointers)
         self.pointers = self.pointers.drop_duplicates(subset=["hex"])
+        print(self.pointers)
 
 
     def get_seqs(self):
@@ -122,28 +118,30 @@ class Block:
         self.pointers = pd.merge(self.seqs, self.pointers, on="idx")
 
 
-def parse_rom():
+def parse_rom(rom_path):
     """Parses the ROM and segments into blocks with relative pointer positions"""
+
+    # Open ROM
+    rom_fp = os.open(os.path.join(path, rom_path), os.O_RDWR)
+    mm = mmap.mmap(rom_fp, 0, prot=mmap.PROT_READ)
 
     chunk = ""  # Chunk to append blocks to for parsing
     blocks = []
     end = config.MEM_MAX  # Iterator for memory max
     curr = 0
     total = 0
-
     while True:
         table_idx = mm.rfind(config.TABLE_SEP, config.MEM_MIN, end)
-        # print(hex(table_idx))
+        print(hex(table_idx))
 
         if table_idx < 1:
             break
 
         table = mm[table_idx:end].hex()
         table = table[config.HEADER_SIZE:-config.FOOTER_SIZE]  # Remove table header/footer info
-        # chunk = table + chunk
+        chunk = table + chunk
 
-        # block = Block(chunk, table_idx + 24)
-        block = Block(table, table_idx + 24)
+        block = Block(chunk, table_idx + 24)
 
         # print(block)
 
@@ -272,7 +270,9 @@ def init_translation_table(blocks):
 
 
 if __name__ == "__main__":
-    blocks = parse_rom()
+    rom_path = utils.get_rom_path()
+
+    blocks = parse_rom(rom_path)
 
     translation_table = init_translation_table(blocks)
     patch_rom(blocks, translation_table)

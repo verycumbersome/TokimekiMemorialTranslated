@@ -10,6 +10,8 @@ import json
 
 import numpy as np
 
+from typing import Any
+
 import config
 
 path = os.path.dirname(__file__)
@@ -35,10 +37,15 @@ def clean_seq(seq):
     return seq
 
 
-def reverse_ptr(ptr: str) -> str:
+def reverse_ptr(ptr: Any) -> str:
     """Reverse ps1 pointer from file. Useful for reading and writing ptrs to ROM"""
-    ptr = reversed([ptr[i:i + 2] for i in range(0, len(ptr), 2)])
-    ptr = "".join(list(ptr))
+    if type(ptr) == str:
+        ptr = reversed([ptr[i:i + 2] for i in range(0, len(ptr), 2)])
+        ptr = "".join(list(ptr))
+
+    if type(ptr) == bytes:
+        ptr = reversed([ptr[i:i + 1] for i in range(0, len(ptr), 1)])
+        ptr = b"".join(list(ptr))
 
     return ptr
 

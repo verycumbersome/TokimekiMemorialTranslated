@@ -4,6 +4,7 @@ All utils for translation and encoding from the ROM hex values
 """
 
 import os
+import re
 import json
 
 import mmap
@@ -21,9 +22,8 @@ import config
 translator = google_translator()
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# Path
+# Globals
 path = os.path.dirname(__file__)
-rom_path = utils.get_rom_path()
 
 
 def translate(seq):
@@ -56,7 +56,7 @@ def create_table(filename):
 
         table = mm[table_idx:curr]
         table = table[config.HEADER_SIZE:-config.FOOTER_SIZE]  # Remove table header/footer info
-        table = table.split(b"\x00\x00")
+        table = re.split(b'(\x00\x00|\x80)', table)
 
 
         for seq in table:
@@ -119,6 +119,8 @@ def translate_table(filename):
 
 
 if __name__=="__main__":
+    rom_path = utils.get_rom_path()
+
     dialog_table = create_table(rom_path)
     # json.dump(dialog_table, open("dialog_table.json", "w"), indent=4)
 
