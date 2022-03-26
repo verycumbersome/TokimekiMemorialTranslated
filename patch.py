@@ -65,24 +65,36 @@ class Block:
 
         # Extract all potential pointers from table
         tbl = [p[-6:] + "80" for p in self.table.split("80") if len(p) >= 4]
+        print(tbl)
 
         # Iterate through table and append each pointer to a list
         for ptr_text in tbl:
             ptr = int(utils.reverse_ptr(ptr_text)[2:], 16)
+            try:
+                ptr_location = self.table.index(ptr_text) + self.address
+            except:
+                continue
 
             # if ptr > 0x195000 and ptr < 0x19FFFF:  # Make sure pointer location is correct range
             if ptr > 0x100000:  # Make sure pointer location is correct range
                 self.pointers.append({
                     "hex": hex(ptr),
                     "text": ptr_text,
-                    "idx": ptr
+                    "idx": ptr,
+                    "ptr_location": hex(ptr_location)
                 })
 
-            # Remove all pointers from table
+        # Remove all pointers from table
+        for ptr_text in tbl:
             self.table = self.table.replace(ptr_text, "00000000")
+
+        print(hex(self.address))
+        print(self.pointers)
+        exit()
 
         self.pointers = pd.DataFrame(self.pointers)
         self.pointers = self.pointers.drop_duplicates(subset=["hex"])
+        # print(self.pointers)
 
     def get_seqs(self):
         """Get sequences and indices from table in ROM"""
@@ -123,6 +135,7 @@ class Block:
         # Apply best offset to the sequence indices and merge given offset
         self.seqs["idx"] += offset
         self.pointers = pd.merge(self.seqs, self.pointers, on="idx")
+        # print(self.pointers)
 
 
 def parse_rom(rom_path):
@@ -137,6 +150,7 @@ def parse_rom(rom_path):
     end = config.MEM_MAX  # Iterator for memory max
     curr = 0
     total = 0
+    counter = 0
     while True:
         table_idx = mm.rfind(config.TABLE_SEP, config.MEM_MIN, end)
 
@@ -146,10 +160,12 @@ def parse_rom(rom_path):
         table = mm[table_idx:end].hex()
         table = table[config.HEADER_SIZE:-config.FOOTER_SIZE]  # Remove table header/footer info
         chunk = table + chunk
-
         print()
         print(hex(table_idx))
-        block = Block(chunk, table_idx + 24)
+        print(table)
+        block = Block(chunk, table_idx)
+
+        # print(len(chunk))
 
         if not (len(block.pointers) or len(block.seqs)):
             end = table_idx
@@ -173,7 +189,6 @@ def parse_rom(rom_path):
         # assign each to the most likely pointer
 
         # Calculate the location of mapped memory pointers in ROM
-        counter = 0
         if tmp <= curr:
             # block = Block(chunk.replace(table, ""), table_idx - config.BLOCK_SIZE + 24)
             block = Block(chunk.replace(table, ""), table_idx)
