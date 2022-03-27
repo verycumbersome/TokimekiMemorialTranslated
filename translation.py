@@ -44,7 +44,7 @@ def translate(seq):
 
 def create_table(filename):
     """Returns a translation table from a bin file"""
-    table = {}
+    out = {}
 
     f_ptr = os.open(filename, os.O_RDWR)
     mm = mmap.mmap(f_ptr, 0, prot=mmap.PROT_READ)
@@ -56,13 +56,18 @@ def create_table(filename):
 
         table = mm[table_idx:curr]
         table = table[config.HEADER_SIZE:-config.FOOTER_SIZE]  # Remove table header/footer info
-        table = re.split(b'(\x00\x00|\x80)', table)
-
+        table = re.split(b'(\x00|\x80)', table)
 
         for seq in table:
-            if (utils.check_validity(seq)):
-                print(hex(table_idx))
-                # print(utils.decode_seq(seq))
+            if utils.check_validity(seq):
+                seq = utils.decode_seq(seq).strip()
+                h_key = hashlib.sha224(seq.encode("utf8")).hexdigest()
+                out[h_key] = {
+                    "seq":seq,
+                    "addr":hex(curr)
+                }
+
+                print(seq)
 
         if table_idx < 0:
             break
@@ -122,6 +127,7 @@ if __name__=="__main__":
     rom_path = utils.get_rom_path()
 
     dialog_table = create_table(rom_path)
+    print(len(dialog_table))
     # json.dump(dialog_table, open("dialog_table.json", "w"), indent=4)
 
     # translation_table = translate_table("dialog_table.json")
