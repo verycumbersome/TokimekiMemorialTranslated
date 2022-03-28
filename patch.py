@@ -11,6 +11,7 @@ import mmap
 from halo import Halo
 from tqdm import tqdm
 from shutil import copyfile
+from itertools import groupby
 
 import numpy as np
 import pandas as pd
@@ -70,7 +71,8 @@ class Block:
         for ptr_text in tbl:
             ptr = int(utils.reverse_ptr(ptr_text)[2:], 16)
             try:
-                ptr_location = self.table.index(ptr_text) // 2 + self.address
+                # Add header length to the address to get correct pointer position
+                ptr_location = self.table.index(ptr_text) // 2 + self.address + 24
             except:
                 continue
 
@@ -93,9 +95,6 @@ class Block:
     def get_seqs(self):
         """Get sequences and indices from table in ROM"""
 
-        # print(utils.check_validity("82bb82ea82b682e18142"))
-        # exit()
-
         self.seqs = []
         for seq in self.table.split("00"):
             seq = seq.replace("00", "")
@@ -103,12 +102,10 @@ class Block:
             if utils.check_validity(seq):
                 self.seqs.append((self.table.index(seq) // 2, seq))
 
-        # print(self.table)
-        # print(self.seqs)
-        # exit()
         self.seqs = pd.DataFrame(self.seqs, columns=["idx", "seqs"])
         self.seqs = self.seqs.drop_duplicates(subset=["idx"])
         self.seqs["seq_location"] = ((self.seqs["idx"] * 2) + self.address).apply(hex)
+        # print(self.seqs)
 
     def create_ptr_table(self):
         """Find best offset to match max amount of pointers to sequences"""
@@ -126,9 +123,10 @@ class Block:
         # Apply best offset to the sequence indices and merge given offset
         self.seqs["idx"] += offset
         self.pointers = pd.merge(self.seqs, self.pointers, on="idx")
+        # print(self.pointers)
 
-from itertools import groupby
-def group_pointers(filename):
+
+def group_pointers(filename: str) -> list:
     """Returns a translation table from a bin file"""
 
     f_ptr = os.open(filename, os.O_RDWR)
@@ -140,11 +138,11 @@ def group_pointers(filename):
     start = 0
     end = len(mm)
 
-    # If ranges already exist load from the file
-    if os.path.isfile("sequence_ranges.json"):
-        with open("sequence_ranges.json", "r") as seq_fp:
-            if os.path.isfile("sequence_ranges.json"):
-                return json.load(seq_fp)
+    # # If ranges already exist load from the file
+    # if os.path.isfile("sequence_ranges.json"):
+        # with open("sequence_ranges.json", "r") as seq_fp:
+            # if os.path.isfile("sequence_ranges.json"):
+                # return json.load(seq_fp)
 
     # start = config.MEM_MIN
     # end = config.MEM_MAX
@@ -158,13 +156,14 @@ def group_pointers(filename):
         if (table_idx < 0) or (len(table) != config.BLOCK_SIZE):
             break
 
-        block = Block(table.hex(), table_idx + 24)
+        block = Block(table.hex(), table_idx)
         block_value = len(block.seqs)
         counter += block_value
-        print(counter)
-        print(hex(table_idx))
         out.append(block_value)
         out_idxs.append(table_idx)
+
+        print(counter)
+        print(hex(table_idx))
 
         if counter > 10:
             valid_range = table_idx // config.TOTAL_BLOCK_SIZE
@@ -172,11 +171,6 @@ def group_pointers(filename):
 
         if counter > 0:
             counter -= 1
-
-        # print(hex(table_idx))
-        # print(block_value)
-        # print()
-
 
         start = curr
 
@@ -196,6 +190,7 @@ def group_pointers(filename):
 
     return output
 
+
 def parse_rom(rom_path, min_range, max_range):
     """Parses the ROM and segments into blocks with relative pointer positions"""
 
@@ -205,69 +200,66 @@ def parse_rom(rom_path, min_range, max_range):
 
     chunk = ""  # Chunk to append blocks to for parsing
     blocks = []
+
+    start = min_range
     end = max_range  # Iterator for memory max
+
     curr = 0
     total = 0
-    counter = 0
     while True:
-        table_idx = mm.rfind(config.TABLE_SEP, min_range, end)
+        # table_idx = mm.rfind(config.TABLE_SEP, min_range, end)
 
-        if table_idx < 1:
+        table_idx = mm.find(config.TABLE_SEP, start, end)
+        table = mm[table_idx:table_idx + config.TOTAL_BLOCK_SIZE // 2].hex()
+        table = table[config.HEADER_SIZE:-config.FOOTER_SIZE]  # Remove table header/footer info
+        chunk += table
+
+
+        # print(table)
+        print(hex(table_idx))
+
+        if (table_idx < 0) or (len(table) != config.BLOCK_SIZE):
             break
 
-        table = mm[table_idx:end].hex()
-        table = table[config.HEADER_SIZE:-config.FOOTER_SIZE]  # Remove table header/footer info
-        chunk = table + chunk
-        print()
-        print(hex(table_idx))
-        print(len(chunk))
         block = Block(chunk, table_idx)
-
-        print(len(chunk))
-
-        if not (len(block.pointers) or len(block.seqs) or len(chunk) < config.BLOCK_SIZE * 40):
-            end = table_idx
-            chunk = ""
-            curr = 0
-            continue
 
         # Calculate the block's likelihood of being contigious in memory
         eps = 1e-5
         num_ptrs = len(block.pointers)
         num_seqs = len(block.seqs)
-        num_blocks = len(chunk) / config.BLOCK_SIZE
+        num_blocks = len(chunk) // config.BLOCK_SIZE
+
+        print(num_blocks)
 
         # Ratio of seqs to pointers with exponential falloff: (p/(s+e) - 0.4^n)
-        if num_ptrs > 10 and num_seqs > 10:
-            tmp = (num_ptrs / (num_seqs + eps))
-        else:
-            tmp = (num_ptrs / (num_seqs + eps)) - (0.4 ** num_blocks)
+        tmp = (num_ptrs / (num_seqs + eps))
+        tmp -= (0.4 ** num_blocks) if num_ptrs > 10 and num_seqs > 10 else 0
+
+        # if not (len(block.pointers) or len(block.seqs)) or num_blocks > 40:
+            # start += config.TOTAL_BLOCK_SIZE
+            # chunk = ""
+            # curr = 0
+            # continue
 
         # TODO figure out probabilities associated with each sequence to 
         # assign each to the most likely pointer
 
         # Calculate the location of mapped memory pointers in ROM
         if tmp <= curr:
-            # block = Block(chunk.replace(table, ""), table_idx - config.BLOCK_SIZE + 24)
-            block = Block(chunk.replace(table, ""), table_idx)
-            # block = Block(chunk.replace(table, ""), table_idx - 136)
+            block = Block(chunk, table_idx)
 
             # if curr < 0.75 or len(block.pointers) < 8:
             if len(block.pointers) < 8:
-                end = table_idx
+                start += config.TOTAL_BLOCK_SIZE
                 chunk = ""
                 curr = 0
                 continue
 
             if "seqs" not in block.pointers.columns:
                 curr = tmp
-                end = table_idx
+                start += config.TOTAL_BLOCK_SIZE
                 continue
 
-            block.pointers["ptr_location"] = block.pointers["text"].map(
-                lambda x: mm.find(bytes.fromhex(x), table_idx)
-            )
-            block.pointers = block.pointers[block.pointers["ptr_location"] > 0]
             blocks.append(block)
 
             print("MINTED BLOCK")
@@ -279,12 +271,11 @@ def parse_rom(rom_path, min_range, max_range):
             total += len(block.pointers)
             chunk = ""
             curr = 0
-            end = table_idx
-            counter += 1
+            start += config.TOTAL_BLOCK_SIZE
             continue
 
         curr = tmp
-        end = table_idx
+        start += config.TOTAL_BLOCK_SIZE
 
     return blocks
 
@@ -357,12 +348,13 @@ def init_translation_table(blocks):
 if __name__ == "__main__":
     rom_path = utils.get_rom_path()
 
-    ranges = group_pointers(rom_path)
-    blocks = []
-    for ran in ranges:
-        blocks += parse_rom(rom_path, ran[0], ran[1])
+    # ranges = group_pointers(rom_path)
+    blocks = parse_rom(rom_path, config.MEM_MIN, config.MEM_MAX)
+    # blocks = []
+    # for ran in ranges:
+        # blocks += parse_rom(rom_path, ran[0], ran[1])
 
-    print(blocks)
+    # print(blocks)
 
     # translation_table = init_translation_table(blocks)
     # patch_rom(blocks, translation_table)
