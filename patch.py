@@ -62,7 +62,6 @@ class Block:
     def get_pointers(self):
         """Get a list of all pointers in a block within a given range"""
 
-
         # Extract all potential pointers from table
         tbl = self.table.replace("00", "")
         tbl = [p[-6:] + "80" for p in tbl.split("80") if len(p) >= 4]
@@ -101,10 +100,7 @@ class Block:
         for seq in self.table.split("00"):
             seq = seq.replace("00", "")
 
-            # print(seq)
-
             if utils.check_validity(seq):
-                # print(self.table.index(seq))
                 self.seqs.append((self.table.index(seq) // 2, seq))
 
         # print(self.table)
@@ -134,34 +130,41 @@ class Block:
 from itertools import groupby
 def group_pointers(filename):
     """Returns a translation table from a bin file"""
-    out = []
 
     f_ptr = os.open(filename, os.O_RDWR)
     mm = mmap.mmap(f_ptr, 0, prot=mmap.PROT_READ)
 
-    # start = 0
-    # end = len(mm)
-
-    counter = 0
+    out = []
+    out_idxs = []
     valid_ranges = []
-    start = config.MEM_MIN
-    end = config.MEM_MAX
+    start = 0
+    end = len(mm)
+
+    # If ranges already exist load from the file
+    if os.path.isfile("sequence_ranges.json"):
+        with open("sequence_ranges.json", "r") as seq_fp:
+            if os.path.isfile("sequence_ranges.json"):
+                return json.load(seq_fp)
+
+    # start = config.MEM_MIN
+    # end = config.MEM_MAX
+    counter = 0
     while True:
         table_idx = mm.find(config.TABLE_SEP, start, end)
         curr = mm.find(config.TABLE_SEP, table_idx+config.BLOCK_SIZE, end)
-
         table = mm[table_idx:curr]
         table = table[config.HEADER_SIZE:-config.FOOTER_SIZE]  # Remove table header/footer info
 
-        try:
-            block = Block(table.hex(), table_idx + 24)
-            # block_value = len(block.pointers) + (len(block.seqs) * 10)
-            block_value = len(block.seqs)
-            counter += block_value
-            print(counter)
-            out.append(block_value)
-        except:
+        if (table_idx < 0) or (len(table) != config.BLOCK_SIZE):
             break
+
+        block = Block(table.hex(), table_idx + 24)
+        block_value = len(block.seqs)
+        counter += block_value
+        print(counter)
+        print(hex(table_idx))
+        out.append(block_value)
+        out_idxs.append(table_idx)
 
         if counter > 10:
             valid_range = table_idx // config.TOTAL_BLOCK_SIZE
@@ -174,34 +177,26 @@ def group_pointers(filename):
         # print(block_value)
         # print()
 
-        if table_idx < 0:
-            break
 
         start = curr
 
-    # print(valid_ranges)
+    # Get all valid ranges
+    output = []
     gb = groupby(enumerate(valid_ranges), key=lambda x: x[0] - x[1])
-    # all_groups = ([i[1] for i in g] for _, g in gb)
-    all_groups = ([i[1] * 4096 for i in g] for _, g in gb)
+    all_groups = ([i[1] * config.TOTAL_BLOCK_SIZE for i in g] for _, g in gb)
     valid_ranges = list(filter(lambda x: len(x) > 1, all_groups))
-
-    # valid_ranges = np.array([(x[0], x[-1]) for x in valid_ranges])
-
     for r in valid_ranges:
-        plt.axvspan(r[0], r[-1], color='red', alpha=0.5)
-        # print(r)
+        r = [r[0] - (config.TOTAL_BLOCK_SIZE * 10),
+             r[-1]+ (config.TOTAL_BLOCK_SIZE * 10)]
+        plt.axvspan(r[0], r[1], color='red', alpha=0.5)
+        output.append(r)
 
-    print(out)
-    plt.xlim(config.MEM_MIN, config.MEM_MAX)
-    matplotlib.axes.Axes.set_xscale(1, 'linear')
+    with open("sequence_ranges.json", "w+") as seq_fp:
+        json.dump(output, seq_fp)
 
-    plt.plot(out)
-    plt.show()
+    return output
 
-    return out
-
-
-def parse_rom(rom_path):
+def parse_rom(rom_path, min_range, max_range):
     """Parses the ROM and segments into blocks with relative pointer positions"""
 
     # Open ROM
@@ -210,12 +205,12 @@ def parse_rom(rom_path):
 
     chunk = ""  # Chunk to append blocks to for parsing
     blocks = []
-    end = config.MEM_MAX  # Iterator for memory max
+    end = max_range  # Iterator for memory max
     curr = 0
     total = 0
     counter = 0
     while True:
-        table_idx = mm.rfind(config.TABLE_SEP, config.MEM_MIN, end)
+        table_idx = mm.rfind(config.TABLE_SEP, min_range, end)
 
         if table_idx < 1:
             break
@@ -224,13 +219,13 @@ def parse_rom(rom_path):
         table = table[config.HEADER_SIZE:-config.FOOTER_SIZE]  # Remove table header/footer info
         chunk = table + chunk
         print()
-        print(len(chunk))
         print(hex(table_idx))
-        block = Block(chunk, table_idx + 24)
+        print(len(chunk))
+        block = Block(chunk, table_idx)
 
-        # print(len(chunk))
+        print(len(chunk))
 
-        if not (len(block.pointers) or len(block.seqs)) or len(chunk):
+        if not (len(block.pointers) or len(block.seqs) or len(chunk) < config.BLOCK_SIZE * 40):
             end = table_idx
             chunk = ""
             curr = 0
@@ -254,7 +249,8 @@ def parse_rom(rom_path):
         # Calculate the location of mapped memory pointers in ROM
         if tmp <= curr:
             # block = Block(chunk.replace(table, ""), table_idx - config.BLOCK_SIZE + 24)
-            block = Block(chunk.replace(table, ""), table_idx + 24)
+            block = Block(chunk.replace(table, ""), table_idx)
+            # block = Block(chunk.replace(table, ""), table_idx - 136)
 
             # if curr < 0.75 or len(block.pointers) < 8:
             if len(block.pointers) < 8:
@@ -305,6 +301,7 @@ def patch_rom(blocks, translation_table):
     counter = 0xffff0000  # Counter for new pointer for translated sequence
     for block in tqdm(blocks):
         for ptr in block.pointers.iterrows():
+            print(ptr)
             location = ptr[1]["ptr_location"]
             pointer = ptr[1]["seqs"]
 
@@ -318,6 +315,7 @@ def patch_rom(blocks, translation_table):
             else:
                 seq = utils.encode_english("null")
 
+            seq = utils.encode_english("null")
             seq.append(0)
             out[str(counter - 0xffff0000)] = seq
 
@@ -359,8 +357,12 @@ def init_translation_table(blocks):
 if __name__ == "__main__":
     rom_path = utils.get_rom_path()
 
-    group_pointers(rom_path)
-    # blocks = parse_rom(rom_path)
+    ranges = group_pointers(rom_path)
+    blocks = []
+    for ran in ranges:
+        blocks += parse_rom(rom_path, ran[0], ran[1])
+
+    print(blocks)
 
     # translation_table = init_translation_table(blocks)
     # patch_rom(blocks, translation_table)

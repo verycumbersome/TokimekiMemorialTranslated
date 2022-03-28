@@ -15,7 +15,7 @@ BIN_PATH = "/home/mattjordan/Code/TokimekiMemorialTranslated/rom/Tokimeki Memori
 
 MEM_MIN = 0x5483510
 # MEM_MIN = 0x6483510
-MEM_MAX = 0x6483510 + TOTAL_BLOCK_SIZE * 1
+MEM_MAX = 0x6483510 + TOTAL_BLOCK_SIZE * 1400
 
 
 # Translation
