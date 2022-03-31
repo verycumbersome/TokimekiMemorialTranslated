@@ -229,17 +229,19 @@ def parse_rom(rom_path, min_range, max_range):
         num_seqs = len(block.seqs)
         num_blocks = len(chunk) // config.BLOCK_SIZE
 
+        print(num_ptrs)
+        print(num_seqs)
         print(num_blocks)
 
         # Ratio of seqs to pointers with exponential falloff: (p/(s+e) - 0.4^n)
         tmp = (num_ptrs / (num_seqs + eps))
         tmp -= (0.4 ** num_blocks) if num_ptrs > 10 and num_seqs > 10 else 0
 
-        # if not (len(block.pointers) or len(block.seqs)) or num_blocks > 40:
-            # start += config.TOTAL_BLOCK_SIZE
-            # chunk = ""
-            # curr = 0
-            # continue
+        if num_seqs < 2 and num_blocks > 40:
+            start += config.TOTAL_BLOCK_SIZE
+            chunk = ""
+            curr = 0
+            continue
 
         # TODO figure out probabilities associated with each sequence to 
         # assign each to the most likely pointer
