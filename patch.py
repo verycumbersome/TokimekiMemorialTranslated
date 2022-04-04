@@ -229,12 +229,13 @@ def parse_rom(rom_path, min_range, max_range):
         num_seqs = len(block.seqs)
         num_blocks = len(chunk) // config.BLOCK_SIZE
 
-        print(num_ptrs)
-        print(num_seqs)
-        print(num_blocks)
+        print("num pointer", num_ptrs)
+        print("num seqs", num_seqs)
+        print("num blocks", num_blocks)
+        print()
 
         # Ratio of seqs to pointers with exponential falloff: (p/(s+e) - 0.4^n)
-        tmp = (num_ptrs / (num_seqs + eps))
+        tmp = (num_seqs / (num_ptrs + eps))
         tmp -= (0.4 ** num_blocks) if num_ptrs > 10 and num_seqs > 10 else 0
 
         if num_seqs < 2 and num_blocks > 40:
