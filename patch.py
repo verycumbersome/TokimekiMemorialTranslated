@@ -126,7 +126,7 @@ class Block:
         # print(self.pointers)
 
 
-def group_pointers(filename: str) -> list:
+def get_ptr_ranges(filename: str, display: bool = False) -> list:
     """Returns a translation table from a bin file"""
 
     f_ptr = os.open(filename, os.O_RDWR)
@@ -137,15 +137,21 @@ def group_pointers(filename: str) -> list:
     valid_ranges = []
     start = 0
     end = len(mm)
-
-    # # If ranges already exist load from the file
-    # if os.path.isfile("sequence_ranges.json"):
-        # with open("sequence_ranges.json", "r") as seq_fp:
-            # if os.path.isfile("sequence_ranges.json"):
-                # return json.load(seq_fp)
-
     # start = config.MEM_MIN
     # end = config.MEM_MAX
+
+    # If ranges already exist load from the file
+    if os.path.isfile("patching_data.json"):
+        with open("patching_data.json", "r") as seq_fp:
+            if os.path.isfile("patching_data.json"):
+                if display:
+                    out = json.load(seq_fp)["sequence_ranges"]
+                    for r in out:
+                        plt.axvspan(r[0], r[1], color='red', alpha=0.5)
+                    plt.plot(out)
+                    plt.show()
+                return json.load(seq_fp)["sequence_ranges"]
+
     counter = 0
     while True:
         table_idx = mm.find(config.TABLE_SEP, start, end)
@@ -175,7 +181,8 @@ def group_pointers(filename: str) -> list:
         start = curr
 
     # Get all valid ranges
-    output = []
+    output = {"sequence_ranges":[]}
+    print(output)
     gb = groupby(enumerate(valid_ranges), key=lambda x: x[0] - x[1])
     all_groups = ([i[1] * config.TOTAL_BLOCK_SIZE for i in g] for _, g in gb)
     valid_ranges = list(filter(lambda x: len(x) > 1, all_groups))
@@ -183,9 +190,9 @@ def group_pointers(filename: str) -> list:
         r = [r[0] - (config.TOTAL_BLOCK_SIZE * 10),
              r[-1]+ (config.TOTAL_BLOCK_SIZE * 10)]
         plt.axvspan(r[0], r[1], color='red', alpha=0.5)
-        output.append(r)
+        output["sequence_ranges"].append(r)
 
-    with open("sequence_ranges.json", "w+") as seq_fp:
+    with open("patching_data.json", "w+") as seq_fp:
         json.dump(output, seq_fp)
 
     return output
@@ -351,8 +358,8 @@ def init_translation_table(blocks):
 if __name__ == "__main__":
     rom_path = utils.get_rom_path()
 
-    # ranges = group_pointers(rom_path)
-    blocks = parse_rom(rom_path, config.MEM_MIN, config.MEM_MAX)
+    ranges = get_ptr_ranges(rom_path)
+    # blocks = parse_rom(rom_path, config.MEM_MIN, config.MEM_MAX)
     # blocks = []
     # for ran in ranges:
         # blocks += parse_rom(rom_path, ran[0], ran[1])
