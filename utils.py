@@ -17,15 +17,24 @@ import config
 path = os.path.dirname(__file__)
 
 
-def get_rom_path():
+def get_rom_path() -> str:
     """Gets the path of the rom to patch"""
-    rom_paths = os.listdir(os.path.join(path, "roms"))
+    with open("patching_data.json", "r") as fp:
+        patching_data = json.load(fp)
+        if "rom_path" in patching_data:
+            return patching_data["rom_path"]
 
     print("Which ROM would you like to patch?")
+    rom_paths = os.listdir(os.path.join(path, "roms"))
     for i, p in enumerate(rom_paths):
         print("{}. {}".format(i, p))
     rom_path = rom_paths[int(input())]
     rom_path = os.path.join(path, "roms", rom_path)
+
+    with open("patching_data.json", "w") as fp:
+        patching_data["rom_path"] = rom_path
+        print(patching_data)
+        json.dump(patching_data, fp)
 
     return rom_path
 
@@ -196,7 +205,7 @@ def get_num_seqs() -> int:
 
 
 if __name__=="__main__":
-    get_num_seqs()
+    get_rom_path()
     # text = input()
     # seq = "This is a longer sentence but the text is fucked"
 
