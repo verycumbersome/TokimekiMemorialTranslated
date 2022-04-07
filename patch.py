@@ -126,6 +126,25 @@ class Block:
         # print(self.pointers)
 
 
+def init_patch_data():
+    if os.path.isfile("patching_data.json"):
+        with open("patching_data.json", "r") as fp:
+            patching_data = json.load(fp)
+    else:
+        rom_path = utils.get_rom_path()
+        ptr_ranges = get_ptr_ranges(rom_path)
+        patching_data = {
+            "rom_path":rom_path,
+            "ptr_ranges":ptr_ranges
+        }
+        with open("patching_data.json", "w+") as fp:
+            json.dump(patching_data, fp)
+
+    print(patching_data)
+
+    return patching_data
+
+
 def get_ptr_ranges(filename: str, display: bool = False) -> list:
     """Returns a translation table from a bin file"""
 
@@ -141,17 +160,6 @@ def get_ptr_ranges(filename: str, display: bool = False) -> list:
     # end = config.MEM_MAX
 
     # If ranges already exist load from the file
-    if os.path.isfile("patching_data.json"):
-        with open("patching_data.json", "r") as seq_fp:
-            if os.path.isfile("patching_data.json"):
-                if display:
-                    out = json.load(seq_fp)["sequence_ranges"]
-                    for r in out:
-                        plt.axvspan(r[0], r[1], color='red', alpha=0.5)
-                    plt.plot(out)
-                    plt.show()
-                return json.load(seq_fp)["sequence_ranges"]
-
     counter = 0
     while True:
         table_idx = mm.find(config.TABLE_SEP, start, end)
@@ -191,9 +199,6 @@ def get_ptr_ranges(filename: str, display: bool = False) -> list:
              r[-1]+ (config.TOTAL_BLOCK_SIZE * 10)]
         plt.axvspan(r[0], r[1], color='red', alpha=0.5)
         output["sequence_ranges"].append(r)
-
-    with open("patching_data.json", "w+") as seq_fp:
-        json.dump(output, seq_fp)
 
     return output
 
@@ -356,9 +361,10 @@ def init_translation_table(blocks):
 
 
 if __name__ == "__main__":
-    rom_path = utils.get_rom_path()
+    init_patch_data()
+    # rom_path = utils.get_rom_path()
 
-    ranges = get_ptr_ranges(rom_path)
+    # ranges = get_ptr_ranges(rom_path)
     # blocks = parse_rom(rom_path, config.MEM_MIN, config.MEM_MAX)
     # blocks = []
     # for ran in ranges:
