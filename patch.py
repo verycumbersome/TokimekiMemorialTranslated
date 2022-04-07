@@ -127,6 +127,7 @@ class Block:
 
 
 def init_patch_data():
+    """Initialize the patching parameters for the ROM"""
     if os.path.isfile("patching_data.json"):
         with open("patching_data.json", "r") as fp:
             patching_data = json.load(fp)
@@ -145,6 +146,7 @@ def init_patch_data():
     return patching_data
 
 
+import matplotlib
 def get_ptr_ranges(filename: str, display: bool = False) -> list:
     """Returns a translation table from a bin file"""
 
@@ -200,6 +202,12 @@ def get_ptr_ranges(filename: str, display: bool = False) -> list:
         plt.axvspan(r[0], r[1], color='red', alpha=0.5)
         output["sequence_ranges"].append(r)
 
+    plt.xlim(0, end)
+    matplotlib.axes.Axes.set_xscale(1, 'linear')
+
+    plt.plot(out)
+    plt.show()
+
     return output
 
 
@@ -225,7 +233,6 @@ def parse_rom(rom_path, min_range, max_range):
         table = mm[table_idx:table_idx + config.TOTAL_BLOCK_SIZE // 2].hex()
         table = table[config.HEADER_SIZE:-config.FOOTER_SIZE]  # Remove table header/footer info
         chunk += table
-
 
         # print(table)
         print(hex(table_idx))
@@ -298,7 +305,7 @@ def parse_rom(rom_path, min_range, max_range):
 def patch_rom(blocks, translation_table):
     out = {}
     out_fp = open("pointer_table.json", "w")
-    patched_path = "patched_rom.bin"
+    patched_path = "roms/patched_rom/patched_rom.bin"
 
     copyfile(rom_path, patched_path)
     patched_fp = os.open(os.path.join(path, patched_path), os.O_RDWR)
@@ -361,11 +368,9 @@ def init_translation_table(blocks):
 
 
 if __name__ == "__main__":
-    init_patch_data()
-    # rom_path = utils.get_rom_path()
+    patch_data = init_patch_data()
 
-    # ranges = get_ptr_ranges(rom_path)
-    # blocks = parse_rom(rom_path, config.MEM_MIN, config.MEM_MAX)
+    blocks = parse_rom(patch_data["rom_path"], config.MEM_MIN, config.MEM_MAX)
     # blocks = []
     # for ran in ranges:
         # blocks += parse_rom(rom_path, ran[0], ran[1])
