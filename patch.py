@@ -5,8 +5,8 @@ All ROM utils for patching the translations back into the game
 
 import os
 import json
-
 import mmap
+import matplotlib
 
 from halo import Halo
 from tqdm import tqdm
@@ -38,6 +38,9 @@ class Block:
         # Initialize class vars
         self.seqs = []
         self.pointers = []
+        self.num_seqs = 0
+        self.num_ptrs = 0
+        self.num_blocks = len(table) // config.BLOCK_SIZE
 
         # Call init functions
         self.get_pointers()
@@ -82,7 +85,7 @@ class Block:
                     "hex": hex(ptr),
                     "text": ptr_text,
                     "idx": ptr,
-                    "ptr_location": hex(ptr_location)
+                    "ptr_location": ptr_location
                 })
 
         # Remove all pointers from table
@@ -91,6 +94,7 @@ class Block:
 
         self.pointers = pd.DataFrame(self.pointers)
         self.pointers = self.pointers.drop_duplicates(subset=["hex"])
+        self.num_ptrs = len(self.pointers)
 
     def get_seqs(self):
         """Get sequences and indices from table in ROM"""
@@ -105,7 +109,7 @@ class Block:
         self.seqs = pd.DataFrame(self.seqs, columns=["idx", "seqs"])
         self.seqs = self.seqs.drop_duplicates(subset=["idx"])
         self.seqs["seq_location"] = ((self.seqs["idx"] * 2) + self.address).apply(hex)
-        # print(self.seqs)
+        self.num_seqs = len(self.seqs)
 
     def create_ptr_table(self):
         """Find best offset to match max amount of pointers to sequences"""
@@ -128,6 +132,7 @@ class Block:
 
 def init_patch_data():
     """Initialize the patching parameters for the ROM"""
+
     if os.path.isfile("patching_data.json"):
         with open("patching_data.json", "r") as fp:
             patching_data = json.load(fp)
@@ -141,12 +146,9 @@ def init_patch_data():
         with open("patching_data.json", "w+") as fp:
             json.dump(patching_data, fp)
 
-    print(patching_data)
-
     return patching_data
 
 
-import matplotlib
 def get_ptr_ranges(filename: str, display: bool = False) -> list:
     """Returns a translation table from a bin file"""
 
@@ -240,24 +242,21 @@ def parse_rom(rom_path, min_range, max_range):
         if (table_idx < 0) or (len(table) != config.BLOCK_SIZE):
             break
 
-        block = Block(chunk, table_idx)
+        b = Block(chunk, table_idx)
 
         # Calculate the block's likelihood of being contigious in memory
         eps = 1e-5
-        num_ptrs = len(block.pointers)
-        num_seqs = len(block.seqs)
-        num_blocks = len(chunk) // config.BLOCK_SIZE
 
-        print("num pointer", num_ptrs)
-        print("num seqs", num_seqs)
-        print("num blocks", num_blocks)
+        print("num pointer", b.num_ptrs)
+        print("num seqs", b.num_seqs)
+        print("num blocks", b.num_blocks)
         print()
 
         # Ratio of seqs to pointers with exponential falloff: (p/(s+e) - 0.4^n)
-        tmp = (num_seqs / (num_ptrs + eps))
-        tmp -= (0.4 ** num_blocks) if num_ptrs > 10 and num_seqs > 10 else 0
+        tmp = (b.num_seqs / (b.num_ptrs + eps))
+        tmp -= (0.4 ** b.num_blocks) if b.num_ptrs > 10 and b.num_seqs > 10 else 0
 
-        if num_seqs < 2 and num_blocks > 40:
+        if (b.num_seqs < 2 and b.num_ptrs > 100) or b.num_blocks > 40:
             start += config.TOTAL_BLOCK_SIZE
             chunk = ""
             curr = 0
@@ -268,29 +267,29 @@ def parse_rom(rom_path, min_range, max_range):
 
         # Calculate the location of mapped memory pointers in ROM
         if tmp <= curr:
-            block = Block(chunk, table_idx)
+            b = Block(chunk, table_idx)
 
             # if curr < 0.75 or len(block.pointers) < 8:
-            if len(block.pointers) < 8:
+            if b.num_ptrs < 8:
                 start += config.TOTAL_BLOCK_SIZE
                 chunk = ""
                 curr = 0
                 continue
 
-            if "seqs" not in block.pointers.columns:
+            if "seqs" not in b.pointers.columns:
                 curr = tmp
                 start += config.TOTAL_BLOCK_SIZE
                 continue
 
-            blocks.append(block)
+            blocks.append(b)
 
             print("MINTED BLOCK")
-            print(len(block.pointers), len(block.seqs))
+            print(b.num_ptrs, b.num_seqs)
             print("pointers mapped", total)
-            print(block.pointers)
+            print(b.pointers)
             print()
 
-            total += len(block.pointers)
+            total += len(b.pointers)
             chunk = ""
             curr = 0
             start += config.TOTAL_BLOCK_SIZE
@@ -299,22 +298,23 @@ def parse_rom(rom_path, min_range, max_range):
         curr = tmp
         start += config.TOTAL_BLOCK_SIZE
 
+    print(total)
+
     return blocks
 
 
-def patch_rom(blocks, translation_table):
+def patch_rom(patch_data, blocks, translation_table):
     out = {}
     out_fp = open("pointer_table.json", "w")
     patched_path = "roms/patched_rom/patched_rom.bin"
 
-    copyfile(rom_path, patched_path)
+    copyfile(patch_data["rom_path"], patched_path)
     patched_fp = os.open(os.path.join(path, patched_path), os.O_RDWR)
     patched_mm = mmap.mmap(patched_fp, 0, prot=mmap.PROT_WRITE)
 
     counter = 0xffff0000  # Counter for new pointer for translated sequence
     for block in tqdm(blocks):
         for ptr in block.pointers.iterrows():
-            print(ptr)
             location = ptr[1]["ptr_location"]
             pointer = ptr[1]["seqs"]
 
@@ -371,14 +371,15 @@ if __name__ == "__main__":
     patch_data = init_patch_data()
 
     blocks = parse_rom(patch_data["rom_path"], config.MEM_MIN, config.MEM_MAX)
+
     # blocks = []
-    # for ran in ranges:
+    # for ran in patch_data["ptr_ranges"]:
         # blocks += parse_rom(rom_path, ran[0], ran[1])
 
     # print(blocks)
 
-    # translation_table = init_translation_table(blocks)
-    # patch_rom(blocks, translation_table)
+    translation_table = init_translation_table(blocks)
+    patch_rom(patch_data, blocks, translation_table)
 
 
 
