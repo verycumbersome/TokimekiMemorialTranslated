@@ -138,7 +138,7 @@ def get_seq_offset(seq):
 #TODO Setup nagisa to validate japanese words
 def check_validity(seq: Any) -> bool:
     """Returns true if a sequence is valid given a set of criteria"""
-    if len(seq) > 80 or len(seq) < 4:
+    if len(seq) > 300 or len(seq) < 4:
         return False
 
     if type(seq) == bytes:
@@ -148,13 +148,11 @@ def check_validity(seq: Any) -> bool:
     seq, jis_chars = get_seq_offset(seq)
 
     # Conditions for being valid sequence for pointer to point to
-    if jis_chars < 8:
-        return False
     if any(x in seq for x in ["8142", "8148", "8149"]):
         jis_chars += 10
     if not len(seq):
         return False
-    if (jis_chars / (len(seq) * 0.25) <= 0.6): # Not enough valid chars
+    if (jis_chars / (len(seq) * 0.25) <= 0.5): # Not enough valid chars
         return False
     if "80" in seq: # Has a pointer
         return False

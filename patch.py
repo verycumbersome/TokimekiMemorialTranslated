@@ -48,18 +48,14 @@ class Block:
         self.create_ptr_table()
 
     def __repr__(self):
-        print("[---------------------------------------------------------------------------]")
-        print("[---------------------------------------------------------------------------]")
-        print("[---------------------------------NEW BLOCK---------------------------------]")
-        print("[---------------------------------------------------------------------------]")
-        print("[---------------------------------------------------------------------------]")
         print("Address: {}".format(hex(self.address)))
-        print("Num Seqs: {}".format(len(self.seqs)))
-        print("Num Pointers: {}".format(len(self.pointers)))
-        print("Pointers: ")
-        print(self.pointers)
-        print("Sequences: ")
-        print(self.seqs)
+        print("Num Seqs: {}".format(self.num_seqs))
+        print("Num Pointers: {}".format(self.num_ptrs))
+        print("Num Blocks: {}".format(self.num_blocks))
+        # print("Pointers: ")
+        # print(self.pointers)
+        # print("Sequences: ")
+        # print(self.seqs)
 
         return("\n")
 
@@ -101,8 +97,6 @@ class Block:
 
         self.seqs = []
         for seq in self.table.split("00"):
-            seq = seq.replace("00", "")
-
             if utils.check_validity(seq):
                 self.seqs.append((self.table.index(seq) // 2, seq))
 
@@ -124,10 +118,11 @@ class Block:
         offset = np.bincount(np.ravel(ptr_idxs[:, None] - seq_idxs[None, :]))
         offset = offset.argmax()
 
+        print("offset", offset)
+
         # Apply best offset to the sequence indices and merge given offset
         self.seqs["idx"] += offset
         self.pointers = pd.merge(self.seqs, self.pointers, on="idx")
-        # print(self.pointers)
 
 
 def init_patch_data():
@@ -212,8 +207,7 @@ def get_ptr_ranges(filename: str, display: bool = False) -> list:
 
     return output
 
-
-def parse_rom(rom_path, min_range, max_range):
+def init_blocks(rom_path, min_range, max_range):
     """Parses the ROM and segments into blocks with relative pointer positions"""
 
     # Open ROM
@@ -227,80 +221,107 @@ def parse_rom(rom_path, min_range, max_range):
     end = max_range  # Iterator for memory max
 
     curr = 0
-    total = 0
     while True:
-        # table_idx = mm.rfind(config.TABLE_SEP, min_range, end)
-
         table_idx = mm.find(config.TABLE_SEP, start, end)
         table = mm[table_idx:table_idx + config.TOTAL_BLOCK_SIZE // 2].hex()
         table = table[config.HEADER_SIZE:-config.FOOTER_SIZE]  # Remove table header/footer info
-        chunk += table
-
-        # print(table)
-        print(hex(table_idx))
 
         if (table_idx < 0) or (len(table) != config.BLOCK_SIZE):
             break
 
-        b = Block(chunk, table_idx)
+        block = Block(table, table_idx)
+        blocks.append(block)
 
-        # Calculate the block's likelihood of being contigious in memory
-        eps = 1e-5
-
-        print("num pointer", b.num_ptrs)
-        print("num seqs", b.num_seqs)
-        print("num blocks", b.num_blocks)
-        print()
-
-        # Ratio of seqs to pointers with exponential falloff: (p/(s+e) - 0.4^n)
-        tmp = (b.num_seqs / (b.num_ptrs + eps))
-        tmp -= (0.4 ** b.num_blocks) if b.num_ptrs > 10 and b.num_seqs > 10 else 0
-
-        if (b.num_seqs < 2 and b.num_ptrs > 100) or b.num_blocks > 40:
-            start += config.TOTAL_BLOCK_SIZE
-            chunk = ""
-            curr = 0
-            continue
-
-        # TODO figure out probabilities associated with each sequence to 
-        # assign each to the most likely pointer
-
-        # Calculate the location of mapped memory pointers in ROM
-        if tmp <= curr:
-            b = Block(chunk, table_idx)
-
-            # if curr < 0.75 or len(block.pointers) < 8:
-            if b.num_ptrs < 8:
-                start += config.TOTAL_BLOCK_SIZE
-                chunk = ""
-                curr = 0
-                continue
-
-            if "seqs" not in b.pointers.columns:
-                curr = tmp
-                start += config.TOTAL_BLOCK_SIZE
-                continue
-
-            blocks.append(b)
-
-            print("MINTED BLOCK")
-            print(b.num_ptrs, b.num_seqs)
-            print("pointers mapped", total)
-            print(b.pointers)
-            print()
-
-            total += len(b.pointers)
-            chunk = ""
-            curr = 0
-            start += config.TOTAL_BLOCK_SIZE
-            continue
-
-        curr = tmp
         start += config.TOTAL_BLOCK_SIZE
 
-    print(total)
 
     return blocks
+
+
+# def parse_rom(rom_path, min_range, max_range):
+    # """Parses the ROM and segments into blocks with relative pointer positions"""
+
+    # # Open ROM
+    # rom_fp = os.open(os.path.join(path, rom_path), os.O_RDWR)
+    # mm = mmap.mmap(rom_fp, 0, prot=mmap.PROT_READ)
+
+    # chunk = ""  # Chunk to append blocks to for parsing
+    # blocks = []
+
+    # start = min_range
+    # end = max_range  # Iterator for memory max
+
+    # curr = 0
+    # total = 0
+    # while True:
+        # table_idx = mm.find(config.TABLE_SEP, start, end)
+        # table = mm[table_idx:table_idx + config.TOTAL_BLOCK_SIZE // 2].hex()
+        # table = table[config.HEADER_SIZE:-config.FOOTER_SIZE]  # Remove table header/footer info
+        # chunk += table
+
+        # # print(hex(table_idx))
+
+        # if (table_idx < 0) or (len(table) != config.BLOCK_SIZE):
+            # break
+
+        # b = Block(chunk, table_idx)
+
+        # # Calculate the block's likelihood of being contigious in memory
+        # # Ratio of seqs to pointers with exponential falloff: (p/(s+e) - 0.4^n)
+        # eps = 1e-5
+        # tmp = (b.num_seqs / (b.num_ptrs + eps))
+        # tmp -= (0.4 ** b.num_blocks) if b.num_ptrs > 10 and b.num_seqs > 10 else 0
+
+        # print(tmp)
+        # print(curr)
+
+        # if (b.num_seqs == 0 and b.num_ptrs > 30) or b.num_blocks > 40:
+            # start += config.TOTAL_BLOCK_SIZE
+            # chunk = ""
+            # curr = 0
+            # continue
+
+        # # TODO figure out probabilities associated with each sequence to 
+        # # assign each to the most likely pointer
+
+        # # Calculate the location of mapped memory pointers in ROM
+        # if curr <= tmp:
+            # b = Block(chunk, table_idx)
+
+            # # if curr < 0.75 or len(block.pointers) < 8:
+            # if b.num_ptrs < 8:
+                # start += config.TOTAL_BLOCK_SIZE
+                # chunk = ""
+                # curr = 0
+                # continue
+
+            # if "seqs" not in b.pointers.columns:
+                # curr = tmp
+                # start += config.TOTAL_BLOCK_SIZE
+                # continue
+
+            # blocks.append(b)
+
+            # print("MINTED BLOCK")
+            # print(b)
+            # print("NUM MAPPED", len(b.pointers))
+            # # print(b.num_ptrs, b.num_seqs)
+            # # print("pointers mapped", total)
+            # # print(b.pointers)
+            # print()
+
+            # total += len(b.pointers)
+            # chunk = ""
+            # curr = 0
+            # start += config.TOTAL_BLOCK_SIZE
+            # continue
+
+        # curr = tmp
+        # start += config.TOTAL_BLOCK_SIZE
+
+    # print(total)
+
+    # return blocks
 
 
 def patch_rom(patch_data, blocks, translation_table):
