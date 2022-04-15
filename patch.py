@@ -26,7 +26,27 @@ path = os.path.dirname(__file__)
 
 
 class Block:
-    """A block in memory from the ROM separated by the PS1 pointer separator"""
+    """A block in memory from the ROM separated by the PS1 pointer separator
+
+    The goal of partitioning the ROM into blocks is to create a structured map
+    of pointers to match to their valid japanese shift-jis sequences. This
+    allows for all sequences in the ROM to theoretically be mapped to their
+    respective pointers and then remap these pointers to point outside of the
+    PS1 RAM and instead into a custom memory bank that has been allocated on
+    the emulator to map to the english shift-jis encoded text instead.
+
+    Attributes:
+        block(str): A division of the ROM that is 4096 bits in size
+        and which contains some amount of both sequnces and pointers to the
+        sequences.
+
+        pointer(int): Any address that points to the ranges between
+        0x80000000-0x80F42400 at a size of about 2mb.
+
+        sequence(str): A sequence of japanese text that is determined to
+        be a valid shift-jis encoded sequence within the rom.
+
+    """
 
     def __init__(self, table, address):
         self.table = table
@@ -238,90 +258,9 @@ def init_blocks(rom_path, min_range, max_range):
     return blocks
 
 
-# def parse_rom(rom_path, min_range, max_range):
-    # """Parses the ROM and segments into blocks with relative pointer positions"""
-
-    # # Open ROM
-    # rom_fp = os.open(os.path.join(path, rom_path), os.O_RDWR)
-    # mm = mmap.mmap(rom_fp, 0, prot=mmap.PROT_READ)
-
-    # chunk = ""  # Chunk to append blocks to for parsing
-    # blocks = []
-
-    # start = min_range
-    # end = max_range  # Iterator for memory max
-
-    # curr = 0
-    # total = 0
-    # while True:
-        # table_idx = mm.find(config.TABLE_SEP, start, end)
-        # table = mm[table_idx:table_idx + config.TOTAL_BLOCK_SIZE // 2].hex()
-        # table = table[config.HEADER_SIZE:-config.FOOTER_SIZE]  # Remove table header/footer info
-        # chunk += table
-
-        # # print(hex(table_idx))
-
-        # if (table_idx < 0) or (len(table) != config.BLOCK_SIZE):
-            # break
-
-        # b = Block(chunk, table_idx)
-
-        # # Calculate the block's likelihood of being contigious in memory
-        # # Ratio of seqs to pointers with exponential falloff: (p/(s+e) - 0.4^n)
-        # eps = 1e-5
-        # tmp = (b.num_seqs / (b.num_ptrs + eps))
-        # tmp -= (0.4 ** b.num_blocks) if b.num_ptrs > 10 and b.num_seqs > 10 else 0
-
-        # print(tmp)
-        # print(curr)
-
-        # if (b.num_seqs == 0 and b.num_ptrs > 30) or b.num_blocks > 40:
-            # start += config.TOTAL_BLOCK_SIZE
-            # chunk = ""
-            # curr = 0
-            # continue
-
-        # # TODO figure out probabilities associated with each sequence to 
-        # # assign each to the most likely pointer
-
-        # # Calculate the location of mapped memory pointers in ROM
-        # if curr <= tmp:
-            # b = Block(chunk, table_idx)
-
-            # # if curr < 0.75 or len(block.pointers) < 8:
-            # if b.num_ptrs < 8:
-                # start += config.TOTAL_BLOCK_SIZE
-                # chunk = ""
-                # curr = 0
-                # continue
-
-            # if "seqs" not in b.pointers.columns:
-                # curr = tmp
-                # start += config.TOTAL_BLOCK_SIZE
-                # continue
-
-            # blocks.append(b)
-
-            # print("MINTED BLOCK")
-            # print(b)
-            # print("NUM MAPPED", len(b.pointers))
-            # # print(b.num_ptrs, b.num_seqs)
-            # # print("pointers mapped", total)
-            # # print(b.pointers)
-            # print()
-
-            # total += len(b.pointers)
-            # chunk = ""
-            # curr = 0
-            # start += config.TOTAL_BLOCK_SIZE
-            # continue
-
-        # curr = tmp
-        # start += config.TOTAL_BLOCK_SIZE
-
-    # print(total)
-
-    # return blocks
+def parse_rom(blocks):
+    """Parses the ROM and segments into blocks with relative pointer positions"""
+    pass
 
 
 def patch_rom(patch_data, blocks, translation_table):
