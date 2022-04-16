@@ -51,7 +51,7 @@ class Block:
 
     def __init__(self, table, address):
         self.table = table
-        self.address = address
+        self.address = address + 24
 
         # Assert correct PS1 block size(4096 bits)
         assert len(table) % config.BLOCK_SIZE == 0, "Incorrect block table length" + str(len(table))
@@ -92,7 +92,7 @@ class Block:
             ptr = int(utils.reverse_ptr(ptr_text)[2:], 16)
             try:
                 # Add header length to the address to get correct pointer position
-                ptr_location = self.table.index(ptr_text) // 2 + self.address + 24
+                ptr_location = self.table.index(ptr_text) // 2 + self.address
             except:
                 continue
 
@@ -123,7 +123,7 @@ class Block:
 
         self.seqs = pd.DataFrame(self.seqs, columns=["idx", "seqs"])
         self.seqs = self.seqs.drop_duplicates(subset=["idx"])
-        self.seqs["seq_location"] = ((self.seqs["idx"] * 2) + self.address).apply(hex)
+        self.seqs["seq_location"] = (self.seqs["idx"]+ self.address).apply(hex)
         self.num_seqs = len(self.seqs)
 
     def create_ptr_table(self):
@@ -149,8 +149,8 @@ class Block:
 def init_patch_data():
     """Initialize the patching parameters for the ROM"""
 
-    if os.path.isfile("patching_data.json"):
-        with open("patching_data.json", "r") as fp:
+    if os.path.isfile("tmp/patching_data.json"):
+        with open("tmp/patching_data.json", "r") as fp:
             patching_data = json.load(fp)
     else:
         rom_path = utils.get_rom_path()
@@ -159,7 +159,7 @@ def init_patch_data():
             "rom_path":rom_path,
             "ptr_ranges":ptr_ranges
         }
-        with open("patching_data.json", "w+") as fp:
+        with open("tmp/patching_data.json", "w+") as fp:
             json.dump(patching_data, fp)
 
     return patching_data
@@ -191,9 +191,8 @@ def get_ptr_ranges(filename: str, display: bool = False) -> list:
             break
 
         block = Block(table.hex(), table_idx)
-        block_value = len(block.seqs)
-        counter += block_value
-        out.append(block_value)
+        counter += block.num_seqs
+        out.append(counter)
         out_idxs.append(table_idx)
 
         print(counter)
@@ -210,7 +209,6 @@ def get_ptr_ranges(filename: str, display: bool = False) -> list:
 
     # Get all valid ranges
     output = {"sequence_ranges":[]}
-    print(output)
     gb = groupby(enumerate(valid_ranges), key=lambda x: x[0] - x[1])
     all_groups = ([i[1] * config.TOTAL_BLOCK_SIZE for i in g] for _, g in gb)
     valid_ranges = list(filter(lambda x: len(x) > 1, all_groups))
@@ -220,11 +218,11 @@ def get_ptr_ranges(filename: str, display: bool = False) -> list:
         plt.axvspan(r[0], r[1], color='red', alpha=0.5)
         output["sequence_ranges"].append(r)
 
-    plt.xlim(0, end)
-    matplotlib.axes.Axes.set_xscale(1, 'linear')
+    # plt.xlim(0, end)
+    # # matplotlib.axes.Axes.set_xscale(1, 'linear')
 
-    plt.plot(out)
-    plt.show()
+    # plt.plot(out)
+    # plt.show()
 
     return output
 
@@ -232,37 +230,37 @@ def get_ptr_ranges(filename: str, display: bool = False) -> list:
 def init_blocks(rom_path, min_range, max_range):
     """Parses the ROM and segments into blocks with relative pointer positions"""
 
-    if os.path.isfile("blocks"):
-        with open("blocks", "rb") as fp:
-            return pickle.load(fp)
+    # if os.path.isfile("tmp/blocks"):
+        # with open("tmp/blocks", "rb") as fp:
+            # return pickle.load(fp)
 
     # Open ROM
     rom_fp = os.open(os.path.join(path, rom_path), os.O_RDWR)
     mm = mmap.mmap(rom_fp, 0, prot=mmap.PROT_READ)
 
-    chunk = ""  # Chunk to append blocks to for parsing
     blocks = []
-
     start = min_range
     end = max_range  # Iterator for memory max
 
-    curr = 0
+    print("Initializing blocks")
     while True:
         table_idx = mm.find(config.TABLE_SEP, start, end)
         table = mm[table_idx:table_idx + config.TOTAL_BLOCK_SIZE // 2].hex()
         table = table[config.HEADER_SIZE:-config.FOOTER_SIZE]  # Remove table header/footer info
-        print(hex(table_idx))
+        # print(hex(table_idx), end="\r")
+
 
         if (table_idx < 0) or (len(table) != config.BLOCK_SIZE):
             break
 
         block = Block(table, table_idx)
+        print(block.pointers)
         if block.num_ptrs > 0 or block.num_seqs > 0:
             blocks.append(block)
 
         start += config.TOTAL_BLOCK_SIZE
 
-    with open("blocks", "wb") as fp:
+    with open("tmp/blocks", "wb") as fp:
             pickle.dump(blocks, fp)
 
     return blocks
@@ -271,10 +269,22 @@ def init_blocks(rom_path, min_range, max_range):
 def parse_rom(blocks):
     """Parses the ROM and segments into blocks with relative pointer positions"""
 
-    for block in blocks:
-        if block.num_seqs > 0:
-            print(block)
+    chunks = []
+    for i, b in enumerate(blocks):
+        if blocks[i].num_seqs > 2:
+            while blocks[i].num_seqs > 2:
+                i += 1
+                chunk
+                print(blocks[i])
 
+            print()
+            print()
+            print()
+            print()
+            print()
+            print()
+            print()
+            print()
 
 def patch_rom(patch_data, blocks, translation_table):
     out = {}
@@ -344,7 +354,7 @@ if __name__ == "__main__":
     patch_data = init_patch_data()
 
     blocks = init_blocks(patch_data["rom_path"], config.MEM_MIN, config.MEM_MAX)
-    parse_rom(blocks)
+    # parse_rom(blocks)
 
     # blocks = []
     # for ran in patch_data["ptr_ranges"]:
