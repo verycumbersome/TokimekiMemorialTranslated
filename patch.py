@@ -138,7 +138,7 @@ class Block:
         offset = np.bincount(np.ravel(ptr_idxs[:, None] - seq_idxs[None, :]))
         offset = offset.argmax()
 
-        print("offset", offset)
+        print(offset)
 
         # Apply best offset to the sequence indices and merge given offset
         self.seqs["idx"] += offset
@@ -250,6 +250,7 @@ def init_blocks(rom_path, min_range, max_range):
             break
 
         block = Block(table, table_idx)
+        print(block)
         blocks.append(block)
 
         start += config.TOTAL_BLOCK_SIZE
@@ -330,7 +331,7 @@ def init_translation_table(blocks):
 if __name__ == "__main__":
     patch_data = init_patch_data()
 
-    blocks = parse_rom(patch_data["rom_path"], config.MEM_MIN, config.MEM_MAX)
+    blocks = init_blocks(patch_data["rom_path"], config.MEM_MIN, config.MEM_MAX)
 
     # blocks = []
     # for ran in patch_data["ptr_ranges"]:
@@ -338,8 +339,8 @@ if __name__ == "__main__":
 
     # print(blocks)
 
-    translation_table = init_translation_table(blocks)
-    patch_rom(patch_data, blocks, translation_table)
+    # translation_table = init_translation_table(blocks)
+    # patch_rom(patch_data, blocks, translation_table)
 
 
 
