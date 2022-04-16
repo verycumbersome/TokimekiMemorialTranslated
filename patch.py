@@ -6,6 +6,7 @@ All ROM utils for patching the translations back into the game
 import os
 import json
 import mmap
+import pickle
 import matplotlib
 
 from halo import Halo
@@ -138,7 +139,7 @@ class Block:
         offset = np.bincount(np.ravel(ptr_idxs[:, None] - seq_idxs[None, :]))
         offset = offset.argmax()
 
-        print(offset)
+        # print(offset % 4096)
 
         # Apply best offset to the sequence indices and merge given offset
         self.seqs["idx"] += offset
@@ -227,8 +228,13 @@ def get_ptr_ranges(filename: str, display: bool = False) -> list:
 
     return output
 
+
 def init_blocks(rom_path, min_range, max_range):
     """Parses the ROM and segments into blocks with relative pointer positions"""
+
+    if os.path.isfile("blocks"):
+        with open("blocks", "rb") as fp:
+            return pickle.load(fp)
 
     # Open ROM
     rom_fp = os.open(os.path.join(path, rom_path), os.O_RDWR)
@@ -245,23 +251,29 @@ def init_blocks(rom_path, min_range, max_range):
         table_idx = mm.find(config.TABLE_SEP, start, end)
         table = mm[table_idx:table_idx + config.TOTAL_BLOCK_SIZE // 2].hex()
         table = table[config.HEADER_SIZE:-config.FOOTER_SIZE]  # Remove table header/footer info
+        print(hex(table_idx))
 
         if (table_idx < 0) or (len(table) != config.BLOCK_SIZE):
             break
 
         block = Block(table, table_idx)
-        print(block)
-        blocks.append(block)
+        if block.num_ptrs > 0 or block.num_seqs > 0:
+            blocks.append(block)
 
         start += config.TOTAL_BLOCK_SIZE
 
+    with open("blocks", "wb") as fp:
+            pickle.dump(blocks, fp)
 
     return blocks
 
 
 def parse_rom(blocks):
     """Parses the ROM and segments into blocks with relative pointer positions"""
-    pass
+
+    for block in blocks:
+        if block.num_seqs > 0:
+            print(block)
 
 
 def patch_rom(patch_data, blocks, translation_table):
@@ -332,6 +344,7 @@ if __name__ == "__main__":
     patch_data = init_patch_data()
 
     blocks = init_blocks(patch_data["rom_path"], config.MEM_MIN, config.MEM_MAX)
+    parse_rom(blocks)
 
     # blocks = []
     # for ran in patch_data["ptr_ranges"]:
