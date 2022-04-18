@@ -64,14 +64,9 @@ class Block:
         self.num_blocks = len(table) // config.BLOCK_SIZE
 
         # Call init functions
-        print("init", len(self.table))
         self.get_pointers()
-        print("pointers", len(self.table))
         self.get_seqs()
-        print("seqs", len(self.table))
         self.create_ptr_table()
-        print("pointer table", len(self.table))
-        print()
 
     def __repr__(self):
         print("Address: {}".format(hex(self.address)))
@@ -233,9 +228,9 @@ def get_ptr_ranges(filename: str, display: bool = False) -> list:
 def init_blocks(rom_path, min_range, max_range):
     """Parses the ROM and segments into blocks with relative pointer positions"""
 
-    # if os.path.isfile("tmp/blocks"):
-        # with open("tmp/blocks", "rb") as fp:
-            # return pickle.load(fp)
+    if os.path.isfile("tmp/blocks"):
+        with open("tmp/blocks", "rb") as fp:
+            return pickle.load(fp)
 
     # Open ROM
     rom_fp = os.open(os.path.join(path, rom_path), os.O_RDWR)
@@ -250,7 +245,7 @@ def init_blocks(rom_path, min_range, max_range):
         table_idx = mm.find(config.TABLE_SEP, start, end)
         table = mm[table_idx:table_idx + config.TOTAL_BLOCK_SIZE // 2].hex()
         table = table[config.HEADER_SIZE:-config.FOOTER_SIZE]  # Remove table header/footer info
-        # print(hex(table_idx), end="\r")
+        print(hex(table_idx), end="\r")
 
         if (table_idx < 0) or (len(table) != config.BLOCK_SIZE):
             break
