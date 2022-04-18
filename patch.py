@@ -51,6 +51,7 @@ class Block:
 
     def __init__(self, table, address):
         self.table = table
+        self.raw_table = table
         self.address = address + 24
 
         # Assert correct PS1 block size(4096 bits)
@@ -85,7 +86,7 @@ class Block:
 
         # Extract all potential pointers from table
         tbl = self.table.replace("00", "")
-        tbl = [p[-6:] + "80" for p in tbl.split("80") if len(p) == 6]
+        tbl = [p[-6:] + "80" for p in tbl.split("80") if len(p) >= 4]
 
         # Iterate through table and append each pointer to a list
         for ptr_text in tbl:
@@ -107,7 +108,8 @@ class Block:
 
         # Remove all pointers from table
         for ptr_text in tbl:
-            self.table = self.table.replace(ptr_text, "00000000")
+            if len(ptr_text) == 8:
+                self.table = self.table.replace(ptr_text, "00000000")
 
         self.pointers = pd.DataFrame(self.pointers)
         self.pointers = self.pointers.drop_duplicates(subset=["hex"])
@@ -265,16 +267,16 @@ def init_blocks(rom_path, min_range, max_range):
 def parse_rom(blocks):
     """Parses the ROM and segments into blocks with relative pointer positions"""
 
-    for i, b in enumerate(blocks):
+    for i in range(0, len(blocks)):
         chunk = ""
         if blocks[i].num_seqs > 2:
             while blocks[i].num_seqs > 2:
                 i += 1
-                chunk += blocks[i].table
-                if (len(blocks[i].table) != 4096):
-                    print(len(blocks[i].table))
+                chunk += blocks[i].raw_table
 
-            # block = Block(chunk, 0)
+        num_blocks = len(chunk) // config.BLOCK_SIZE
+        i += num_blocks
+        block = Block(chunk, 0)
 
             # print()
             # print()
@@ -353,7 +355,7 @@ if __name__ == "__main__":
     patch_data = init_patch_data()
 
     blocks = init_blocks(patch_data["rom_path"], config.MEM_MIN, config.MEM_MAX)
-    # parse_rom(blocks)
+    parse_rom(blocks)
 
     # blocks = []
     # for ran in patch_data["ptr_ranges"]:
