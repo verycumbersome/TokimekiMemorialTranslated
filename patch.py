@@ -64,9 +64,14 @@ class Block:
         self.num_blocks = len(table) // config.BLOCK_SIZE
 
         # Call init functions
+        print("init", len(self.table))
         self.get_pointers()
+        print("pointers", len(self.table))
         self.get_seqs()
+        print("seqs", len(self.table))
         self.create_ptr_table()
+        print("pointer table", len(self.table))
+        print()
 
     def __repr__(self):
         print("Address: {}".format(hex(self.address)))
@@ -85,7 +90,7 @@ class Block:
 
         # Extract all potential pointers from table
         tbl = self.table.replace("00", "")
-        tbl = [p[-6:] + "80" for p in tbl.split("80") if len(p) >= 4]
+        tbl = [p[-6:] + "80" for p in tbl.split("80") if len(p) == 6]
 
         # Iterate through table and append each pointer to a list
         for ptr_text in tbl:
@@ -138,8 +143,6 @@ class Block:
         # Find optimal offset to match most amount of pointers to seqs
         offset = np.bincount(np.ravel(ptr_idxs[:, None] - seq_idxs[None, :]))
         offset = offset.argmax()
-
-        # print(offset % 4096)
 
         # Apply best offset to the sequence indices and merge given offset
         self.seqs["idx"] += offset
@@ -249,12 +252,10 @@ def init_blocks(rom_path, min_range, max_range):
         table = table[config.HEADER_SIZE:-config.FOOTER_SIZE]  # Remove table header/footer info
         # print(hex(table_idx), end="\r")
 
-
         if (table_idx < 0) or (len(table) != config.BLOCK_SIZE):
             break
 
         block = Block(table, table_idx)
-        print(block.pointers)
         if block.num_ptrs > 0 or block.num_seqs > 0:
             blocks.append(block)
 
@@ -269,22 +270,25 @@ def init_blocks(rom_path, min_range, max_range):
 def parse_rom(blocks):
     """Parses the ROM and segments into blocks with relative pointer positions"""
 
-    chunks = []
     for i, b in enumerate(blocks):
+        chunk = ""
         if blocks[i].num_seqs > 2:
             while blocks[i].num_seqs > 2:
                 i += 1
-                chunk
-                print(blocks[i])
+                chunk += blocks[i].table
+                if (len(blocks[i].table) != 4096):
+                    print(len(blocks[i].table))
 
-            print()
-            print()
-            print()
-            print()
-            print()
-            print()
-            print()
-            print()
+            # block = Block(chunk, 0)
+
+            # print()
+            # print()
+            # print()
+            # print()
+            # print()
+            # print()
+            # print()
+            # print()
 
 def patch_rom(patch_data, blocks, translation_table):
     out = {}
