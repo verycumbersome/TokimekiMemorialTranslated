@@ -74,6 +74,7 @@ class Block:
         print("Num Seqs: {}".format(self.num_seqs))
         print("Num Pointers: {}".format(self.num_ptrs))
         print("Num Blocks: {}".format(self.num_blocks))
+        print("Num Mapped Pointers: {}".format(len(self.pointers)))
         # print("Pointers: ")
         # print(self.pointers)
         # print("Sequences: ")
@@ -86,7 +87,7 @@ class Block:
 
         # Extract all potential pointers from table
         tbl = self.table.replace("00", "")
-        tbl = [p[-6:] + "80" for p in tbl.split("80") if len(p) >= 4]
+        tbl = [p[-6:] + "80" for p in tbl.split("80") if len(p) >= 6]
 
         # Iterate through table and append each pointer to a list
         for ptr_text in tbl:
@@ -98,7 +99,7 @@ class Block:
                 continue
 
             # if ptr > 0x195000 and ptr < 0x19FFFF:  # Make sure pointer location is correct range
-            if ptr > 0x100000:  # Make sure pointer location is correct range
+            # if ptr > 0x100000:  # Make sure pointer location is correct range
                 self.pointers.append({
                     "hex": hex(ptr),
                     "text": ptr_text,
@@ -108,8 +109,7 @@ class Block:
 
         # Remove all pointers from table
         for ptr_text in tbl:
-            if len(ptr_text) == 8:
-                self.table = self.table.replace(ptr_text, "00000000")
+            self.table = self.table.replace(ptr_text, "00000000")
 
         self.pointers = pd.DataFrame(self.pointers)
         self.pointers = self.pointers.drop_duplicates(subset=["hex"])
@@ -265,27 +265,32 @@ def init_blocks(rom_path, min_range, max_range):
 
 
 def parse_rom(blocks):
-    """Parses the ROM and segments into blocks with relative pointer positions"""
+    """Parses blocks from ROM and matches them into chunks to find relative pointer positions"""
 
-    for i in range(0, len(blocks)):
-        chunk = ""
-        if blocks[i].num_seqs > 2:
+    i = 0
+    while i < len(blocks):
+        chunk = []
+        if blocks[i].num_seqs > 10:
+            # if not chunk:
+                # chunk.append(blocks[i-1])
+
             while blocks[i].num_seqs > 2:
+                chunk.append(blocks[i])
                 i += 1
-                chunk += blocks[i].raw_table
+        i += 1
 
-        num_blocks = len(chunk) // config.BLOCK_SIZE
-        i += num_blocks
-        block = Block(chunk, 0)
+        if chunk:
+            print(len(chunk))
+            address = chunk[0].address
 
-            # print()
-            # print()
-            # print()
-            # print()
-            # print()
-            # print()
-            # print()
-            # print()
+            maximum = 0
+            c = [x.raw_table for x in chunk]
+            c = "".join(c)
+
+            block = Block(c, 0x647FDF0)
+            print(block)
+            exit()
+
 
 def patch_rom(patch_data, blocks, translation_table):
     out = {}
