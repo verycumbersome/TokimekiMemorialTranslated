@@ -98,14 +98,14 @@ class Block:
             except:
                 continue
 
-            # if ptr > 0x195000 and ptr < 0x19FFFF:  # Make sure pointer location is correct range
+            # TODO this conditional possibly breaks the code make sure this works!!
             # if ptr > 0x100000:  # Make sure pointer location is correct range
-                self.pointers.append({
-                    "hex": hex(ptr),
-                    "text": ptr_text,
-                    "idx": ptr,
-                    "ptr_location": ptr_location
-                })
+            self.pointers.append({
+                "hex": hex(ptr),
+                "text": ptr_text,
+                "idx": ptr,
+                "ptr_location": ptr_location
+            })
 
         # Remove all pointers from table
         for ptr_text in tbl:
@@ -256,7 +256,7 @@ def init_blocks(rom_path, min_range, max_range):
         if block.num_ptrs > 0 or block.num_seqs > 0:
             blocks.append(block)
 
-        start += config.TOTAL_BLOCK_SIZE
+        start += config.TOTAL_BLOCK_SIZE // 2
 
     with open("tmp/blocks", "wb") as fp:
             pickle.dump(blocks, fp)
@@ -267,29 +267,34 @@ def init_blocks(rom_path, min_range, max_range):
 def parse_rom(blocks):
     """Parses blocks from ROM and matches them into chunks to find relative pointer positions"""
 
+    out = []
+
     i = 0
     while i < len(blocks):
-        chunk = []
-        if blocks[i].num_seqs > 10:
-            # if not chunk:
-                # chunk.append(blocks[i-1])
 
-            while blocks[i].num_seqs > 2:
-                chunk.append(blocks[i])
-                i += 1
+        print(blocks[i])
         i += 1
+    # while i < len(blocks):
+        # chunk = [blocks[i - 1]]
+        # while blocks[i].num_seqs > 10:
+            # chunk.append(blocks[i])
+            # i += 1
 
-        if chunk:
-            print(len(chunk))
-            address = chunk[0].address
+        # if len(chunk) > 1:
+            # address = chunk[0].address
 
-            maximum = 0
-            c = [x.raw_table for x in chunk]
-            c = "".join(c)
+            # c = [x.raw_table for x in chunk]
+            # c = "".join(c)
 
-            block = Block(c, 0x647FDF0)
-            print(block)
-            exit()
+            # block = Block(c, address)
+
+            # out.append(block)
+
+            # print(block)
+
+        # i += 1
+
+    return out
 
 
 def patch_rom(patch_data, blocks, translation_table):
@@ -303,6 +308,8 @@ def patch_rom(patch_data, blocks, translation_table):
 
     counter = 0xffff0000  # Counter for new pointer for translated sequence
     for block in tqdm(blocks):
+        if "seqs" not in block.pointers.columns:
+            continue
         for ptr in block.pointers.iterrows():
             location = ptr[1]["ptr_location"]
             pointer = ptr[1]["seqs"]
@@ -317,7 +324,7 @@ def patch_rom(patch_data, blocks, translation_table):
             else:
                 seq = utils.encode_english("null")
 
-            seq = utils.encode_english("null")
+            # seq = utils.encode_english("Hello raymond")
             seq.append(0)
             out[str(counter - 0xffff0000)] = seq
 
@@ -368,8 +375,8 @@ if __name__ == "__main__":
 
     # print(blocks)
 
-    # translation_table = init_translation_table(blocks)
-    # patch_rom(patch_data, blocks, translation_table)
+    translation_table = init_translation_table(blocks)
+    patch_rom(patch_data, blocks, translation_table)
 
 
 

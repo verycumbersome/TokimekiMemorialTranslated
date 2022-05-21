@@ -18,7 +18,8 @@ BIN_PATH = "/home/mattjordan/Code/TokimekiMemorialTranslated/rom/Tokimeki Memori
 # MEM_MAX = 0x65EF5F0 + TOTAL_BLOCK_SIZE * 1040
 
 
-MEM_MIN = 0x647FDF0
+# MEM_MIN = 0x647FDF0
+MEM_MIN = 0x6000000
 MEM_MAX = 0x647FDF0 + TOTAL_BLOCK_SIZE * 1400
 # NUMBER OF SEQS SHOULD BE 34
 

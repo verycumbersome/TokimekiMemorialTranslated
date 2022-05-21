@@ -91,7 +91,7 @@ def encode_english(seq: str) -> list:
         if c == "(" or c == ")":
             offset = 0x8141
 
-        if counter % 12 == 0:
+        if counter % 8 == 0:
             return_flag = True
 
         # Split the english S.J hex and convert both halves to int
@@ -115,6 +115,7 @@ def encode_english(seq: str) -> list:
     # print(out)
 
     return enc
+
 
 def get_seq_offset(seq):
     """Finds the most probably starting character for a dialog sequence"""
